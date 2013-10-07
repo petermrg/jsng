@@ -162,21 +162,62 @@ var OP = {
 	ADD: 	0xD000,
 }
 
-m68000.prototype.disassemble = function (opcode) {
-	var RM, Rx, Ry, mode = 0;
-	//106
-	if (opcode && MASK.ABCD == OP.ABCD) {
-		RM = (opcode >> 3) & 0x1;
-		Rx = (opcode >> 9) & 0x7;
-		Ry = (opcode) & 0x7;
-		return (!RM)
-			? util.format('ABCD D%d, D%d', Ry, Rx)
-			: util.format('ABCD -(A%d), -(A%d)', Ry, Rx);
-	}
-	//108
-	if (opcode && MASK.ADD == OP.ADD) {
-		mode = (opcode >> 9) & 0x7;
+// mode = [ shift, mask ]
 
-		return 'ABCD ' + (RM ? 'A' : 'D') + Rx + ' ' + (RM ? 'A' : 'D') + Ry;
+var instructionSet = [
+	{
+		mnemonic: 'ABCD',
+		mask: 0xF1F0,   // 1111 0001 1111 0000
+		opcode: 0xC100, // 1100 xxx1 0000 xxxx
+		opmode: [3, 0x01],
+		operands: {
+			Rx: [9, 0x07],
+			Ry: [0, 0x07],
+		},
+		syntax: {
+			0: 'D{Ry}, D{Rx}',
+			1: '-(A{Ry}), -(A{Rx})',
+		}
+	},
+
+	{
+		mnemonic: 'ADD',
+		mask: 0xF1F0,
+		opcode: 0xD000,
+		opmode: [6, 0x07],
+
 	}
+
+];
+
+var getVal = function(n, shiftAnd) {
+	return (n >> shiftAnd[0]) & shiftAnd[1];
 }
+
+m68000.prototype.disassemble = function (instruction) {
+
+	var mode, i, instr, result, operand, re = /{(\w+)}/;
+
+	for (i = 0; i < instructionSet.length; i++) {
+		instr = instructionSet[i];
+		if ((instruction & instr.mask) == instr.opcode) {
+			opmode = getVal(instruction, instr.opmode);
+			result = instr.syntax[opmode];
+			if (!result) {
+				throw Error('Unknown instruction opmode for ' + instr.mnemonic);
+			}
+			while (operand = result.match(re)) {
+				operand = instr.operands[operand[1]];
+				if (!operand) {
+					throw Error('Unknown operand: ' + operand);
+				}
+				operand = getVal(instruction, operand);
+				result = result.replace(re, operand.toString());
+			}
+			return instr.mnemonic + ' ' + result;
+		}
+	}
+	throw Error('Unknown instruction');
+}
+
+module.exports = m68000;
