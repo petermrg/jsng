@@ -1,30 +1,5 @@
 /*
 
-### Integer Unit Programming Model ###
- ______________________________ ______________________________
-[______________________________|______________________________] D0
-[______________________________|______________________________] D1
-[______________________________|______________________________] :
-[______________________________|______________________________] D6
-[______________________________|______________________________] D7
-31                             15                             0
- ______________________________ ______________________________
-[______________________________|______________________________] A0
-[______________________________|______________________________] A1
-[______________________________|______________________________] :
-[______________________________|______________________________] A5
-[______________________________|______________________________] A6
-31                             15                             0
- ______________________________ ______________________________
-[______________________________|______________________________] A7 USP - User Stack Pointer
-31                             15                             0
- ______________________________ ______________________________
-[______________________________|______________________________] PC - Program Counter
-31                             15                             0
-                                _ _ _ _ _ _ _ _ ______________
-                               |_ _ _ _ _ _ _ _|____X_N_Z_V_C_] CCR - Condition Code Register
-                               15              7              0
-
 ### Single- And Double Operand Operations ###
 
 + 					Arithmetic addition or postincrement indicator.
@@ -144,77 +119,52 @@ UB 					Upper Bound
 
 */
 
-var m68000 = function() {
-	this.Regs = new ArrayBuffer(18 * 32);
-	this.Regs8 = new Int8Array(this.Regs);
-	this.Regs16 = new Int16Array(this.Regs);
-	this.Regs32 = new Int32Array(this.Regs);
+/*
+ ______________________________ ______________________________
+[______________________________|______________________________] D0
+[______________________________|______________________________] :
+[______________________________|______________________________] D7
+31                             15                             0
+ ______________________________ ______________________________
+[______________________________|______________________________] A0
+[______________________________|______________________________] :
+[______________________________|______________________________] A6
+31                             15                             0
+ ______________________________ ______________________________
+[______________________________|______________________________] A7 USP - User Stack Pointer
+31                             15                             0
+ ______________________________ ______________________________
+[______________________________|______________________________] PC - Program Counter
+31                             15                             0
+                                _ _ _ _ _ _ _ _ ______________
+                               |_ _ _ _ _ _ _ _|____X_N_Z_V_C_] CCR - Condition Code Register
+                               15              7              0
+*/
 
+var m68000 = function(memory) {
+	this.memory = memory;
+	this.registersBuffer = new ArrayBuffer(18 * 32);
+	this.registers = new DataView(this.registersBuffer);
 }
 
-var MASK = {
-	ABCD: 	0xF1F0,
-	ADD: 	0xF000,
+var MNEMONICS = {
+	ABCD: 	{ mask: 0xF1F0, opcode: 0xC100 },
+	ADD: 	{ mask: 0xF000, opcode: 0xD000 },
 }
 
-var OP = {
-	ABCD: 	0xC100,
-	ADD: 	0xD000,
-}
+m68000.prototype.disassemble = function (address) {
+	var mode, r0, r1,
+		instruction = this.memory.getUint16(address);
 
-// mode = [ shift, mask ]
-
-var instructionSet = [
-	{
-		mnemonic: 'ABCD',
-		mask: 0xF1F0,   // 1111 0001 1111 0000
-		opcode: 0xC100, // 1100 xxx1 0000 xxxx
-		opmode: [3, 0x01],
-		operands: {
-			Rx: [9, 0x07],
-			Ry: [0, 0x07],
-		},
-		syntax: {
-			0: 'D{Ry}, D{Rx}',
-			1: '-(A{Ry}), -(A{Rx})',
-		}
-	},
-
-	{
-		mnemonic: 'ADD',
-		mask: 0xF1F0,
-		opcode: 0xD000,
-		opmode: [6, 0x07],
-
-	}
-
-];
-
-var getVal = function(n, shiftAnd) {
-	return (n >> shiftAnd[0]) & shiftAnd[1];
-}
-
-m68000.prototype.disassemble = function (instruction) {
-
-	var mode, i, instr, result, operand, re = /{(\w+)}/;
-
-	for (i = 0; i < instructionSet.length; i++) {
-		instr = instructionSet[i];
-		if ((instruction & instr.mask) == instr.opcode) {
-			opmode = getVal(instruction, instr.opmode);
-			result = instr.syntax[opmode];
-			if (!result) {
-				throw Error('Unknown instruction opmode for ' + instr.mnemonic);
-			}
-			while (operand = result.match(re)) {
-				operand = instr.operands[operand[1]];
-				if (!operand) {
-					throw Error('Unknown operand: ' + operand);
-				}
-				operand = getVal(instruction, operand);
-				result = result.replace(re, operand.toString());
-			}
-			return instr.mnemonic + ' ' + result;
+	// ABCD
+	if ((instruction & MNEMONICS.ABCD.mask) == MNEMONICS.ABCD.opcode) {
+		mode = (instruction >> 3) & 0x01;
+		r0 = (instruction >> 9) & 0x07;
+		r1 = instruction & 0x07;
+		if (mode == 0) {
+			return { bytes: 2, str: 'ABCD D' + r1 + ', D' + r0 };
+		} else {
+			return { bytes: 2, str: 'ABCD -(A' + r1 + '), -(A' + r0 + ')' };
 		}
 	}
 	throw Error('Unknown instruction');
