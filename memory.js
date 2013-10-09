@@ -6,13 +6,17 @@
  */
 var Memory = function(size, startAddress) {
 	this.buffer = new ArrayBuffer(size);
-	this.data = new DataView(this.buffer);
+	this.data = new DataView(this.buffer); // https://developer.mozilla.org/en-US/docs/Web/API/DataView
 	this.startAddress = startAddress || 0;
 	this.littleEndian = false;
 }
 
 Memory.prototype.getInt8 = function (address) {
 	return this.data.getInt8(address - this.startAddress);
+}
+
+Memory.prototype.getUint8 = function (address) {
+	return this.data.getUint8(address - this.startAddress);
 }
 
 Memory.prototype.getInt16 = function (address) {

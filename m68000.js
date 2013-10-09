@@ -147,27 +147,118 @@ var m68000 = function(memory) {
 	this.registers = new DataView(this.registersBuffer);
 }
 
-var MNEMONICS = {
-	ABCD: 	{ mask: 0xF1F0, opcode: 0xC100 },
-	ADD: 	{ mask: 0xF000, opcode: 0xD000 },
-}
-
 m68000.prototype.disassemble = function (address) {
-	var mode, r0, r1,
-		instruction = this.memory.getUint16(address);
+	var instruction = this.memory.getUint16(address);
+	var opcode = (instruction >> 12) & 0x0F,
+		Rx, Ry, opmode, mode, Dn;
+	switch (opcode) {
 
-	// ABCD
-	if ((instruction & MNEMONICS.ABCD.mask) == MNEMONICS.ABCD.opcode) {
-		mode = (instruction >> 3) & 0x01;
-		r0 = (instruction >> 9) & 0x07;
-		r1 = instruction & 0x07;
-		if (mode == 0) {
-			return { bytes: 2, str: 'ABCD D' + r1 + ', D' + r0 };
-		} else {
-			return { bytes: 2, str: 'ABCD -(A' + r1 + '), -(A' + r0 + ')' };
-		}
+		// 0000 Bit Manipulation/MOVEP/Immediate
+		// 0001 Move Byte
+		// 0010 Move Long
+		// 0011 Move Word
+		// 0100 Miscellaneous
+		// 0101 ADDQ/SUBQ/Scc/DBcc/TRAPc c
+		// 0110 Bcc/BSR/BRA
+		// 0111 MOVEQ
+		// 1000 OR/DIV/SBCD
+		// 1001 SUB/SUBX
+		// 1010 (Unassigned, Reserved)
+		// 1011 CMP/EOR
+
+		// 1100 AND/MUL/ABCD/EXG
+		case 12:
+			if (((instruction >> 4) & 0x1F) == 0x10) {
+				// ABCD: Source10 + Destination10 + X → Destination #106
+				Rx = (instruction >> 9) & 0x07;
+				Ry = instruction & 0x07;
+				mode = (instruction >> 3) & 0x01;
+				if (mode == 0) {
+					return { bytes: 2, str: 'ABCD D'+Ry+', D'+Rx };
+				} else {
+					return { bytes: 2, str: 'ABCD -(A'+Ry+'), -(A'+Rx+')' };
+				}
+			}
+			break;
+
+		// 1101 ADD/ADDX
+		case 13:
+			// ADD: Source + Destination → Destination #108
+			Rx = (instruction >> 9) & 0x07;
+			opmode = (instruction >> 6) & 0x07;
+			mode = (instruction >> 3) & 0x07;
+			Ry = instruction & 0x07;
+			if (opmode <= 7) {
+
+			} else {
+
+			}
+			break;
+
+		// 1110 Shift/Rotate/Bit Field
+		// 1111 Coprocessor Interface/MC68040 and CPU32 Extensions
+
 	}
 	throw Error('Unknown instruction');
+}
+
+m68000.prototype.addressingModeToStr = function (address, mode, n) {
+	switch (mode) {
+
+		// Data Register Direct Mode #46
+		case 0:
+			return { bytes: 0, str: 'D'+n };
+
+		// Address Register Direct Mode  #46
+		case 1:
+			return { bytes: 0, str: 'A'+n };
+
+		// Address Register Indirect Mode  #46
+		case 2:
+			return { bytes: 0, str: '(A'+n+')' };
+
+		// Address Register Indirect with Postincrement Mode #47
+		case 3:
+			return { bytes: 0, str: '(A'+n+')+' };
+
+		// Address Register Indirect with Predecrement Mode #48
+		case 4:
+			return { bytes: 0, str: '-(A'+n+')' };
+
+		/* Address Register Indirect with Displacement Mode (1 extension word: xn and displ) #49
+		In the address register indirect with displacement mode, the operand is in memory. The sum
+		of the address in the address register, which the effective address specifies, plus the sign-
+		extended 16-bit displacement integer in the extension word is the operand’s address in
+		memory. */
+		case 5:
+			var d = this.memory.getInt8(address+1);
+			return { bytes: 1, str: '(d,A'+n+')' }; //d16
+
+		/* Address Register Indirect with Index (8-Bit Displacement) (1 extension word) Mode #50
+		This addressing mode requires one extension word that contains an index register indicator
+		and an 8-bit displacement. The index register indicator includes size and scale information.
+		In this mode, the operand is in memory. The operand’s address is the sum of the address
+		register’s contents; the sign-extended displacement value in the extension word’s low-order
+		eight bits; and the index register’s sign-extended contents (possibly scaled). The user must
+		specify the address register, the displacement, and the index register in this mode. */
+		case 6:
+			return { bytes: 0, str: '(d,A'+n+',X'+n+')' }; //d8
+
+		case 7:
+			switch (n) {
+				// (xxx).W
+				case 0:
+
+				// (xxx).L
+				case 1:
+
+				// (d16,PC)
+				case 2:
+
+				// (d8,PC,Xn)
+				case 3:
+			}
+	}
 }
 
 module.exports = m68000;
