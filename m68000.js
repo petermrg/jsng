@@ -145,10 +145,13 @@ var m68000 = function(memory) {
 	this.memory = memory;
 	this.registersBuffer = new ArrayBuffer(18 * 32);
 	this.registers = new DataView(this.registersBuffer);
+	this.disassemblePointer = 0;
 }
 
 m68000.prototype.disassemble = function (address) {
+	this.disassemblePointer = address || this.disassemblePointer;
 	var instruction = this.memory.getUint16(address);
+	this.disassemblePointer+= 2;
 	var opcode = (instruction >> 12) & 0x0F,
 		Rx, Ry, opmode, mode, Dn;
 	switch (opcode) {
@@ -169,31 +172,31 @@ m68000.prototype.disassemble = function (address) {
 		// 1100 AND/MUL/ABCD/EXG
 		case 12:
 			if (((instruction >> 4) & 0x1F) == 0x10) {
-				// ABCD: Source10 + Destination10 + X → Destination #106
+				// ABCD: Source10 + Destination10 + X → Destination §106
 				Rx = (instruction >> 9) & 0x07;
 				Ry = instruction & 0x07;
 				mode = (instruction >> 3) & 0x01;
 				if (mode == 0) {
-					return { bytes: 2, str: 'ABCD D'+Ry+', D'+Rx };
+					return 'ABCD D'+Ry+', D'+Rx;
 				} else {
-					return { bytes: 2, str: 'ABCD -(A'+Ry+'), -(A'+Rx+')' };
+					return 'ABCD -(A'+Ry+'), -(A'+Rx+')';
 				}
 			}
-			break;
 
 		// 1101 ADD/ADDX
 		case 13:
-			// ADD: Source + Destination → Destination #108
+			// ADD: Source + Destination → Destination §108
 			Rx = (instruction >> 9) & 0x07;
 			opmode = (instruction >> 6) & 0x07;
 			mode = (instruction >> 3) & 0x07;
 			Ry = instruction & 0x07;
-			if (opmode <= 7) {
-
+			var str = 'ADD' + ['', '.W', '.L'][opmode & 0x3] + ' ';
+			if (opmode < 4) {
+				str+= this.addressingModeToStr(mode, Ry)+', D'+Rx;
 			} else {
-
+				str+= 'D'+Rx + this.addressingModeToStr(mode, Ry);
 			}
-			break;
+			return str;
 
 		// 1110 Shift/Rotate/Bit Field
 		// 1111 Coprocessor Interface/MC68040 and CPU32 Extensions
@@ -202,39 +205,45 @@ m68000.prototype.disassemble = function (address) {
 	throw Error('Unknown instruction');
 }
 
-m68000.prototype.addressingModeToStr = function (address, mode, n) {
+// var signExtendNibble = function(n) {
+// 	return (n < 8) n : (n - 16);
+// }
+
+m68000.prototype.addressingModeToStr = function (mode, n) {
+	var d, i;
 	switch (mode) {
 
-		// Data Register Direct Mode #46
+		// Data Register Direct Mode §46
 		case 0:
-			return { bytes: 0, str: 'D'+n };
+			return 'D'+n;
 
-		// Address Register Direct Mode  #46
+		// Address Register Direct Mode  §46
 		case 1:
-			return { bytes: 0, str: 'A'+n };
+			return 'A'+n;
 
-		// Address Register Indirect Mode  #46
+		// Address Register Indirect Mode  §46
 		case 2:
-			return { bytes: 0, str: '(A'+n+')' };
+			return '(A'+n+')';
 
-		// Address Register Indirect with Postincrement Mode #47
+		// Address Register Indirect with Postincrement Mode §47
 		case 3:
-			return { bytes: 0, str: '(A'+n+')+' };
+			return '(A'+n+')+';
 
-		// Address Register Indirect with Predecrement Mode #48
+		// Address Register Indirect with Predecrement Mode §48
 		case 4:
-			return { bytes: 0, str: '-(A'+n+')' };
+			return '-(A'+n+')';
 
-		/* Address Register Indirect with Displacement Mode (1 extension word: xn and displ) #49
+		/* Address Register Indirect with Displacement Mode (1 extension word: xn and displ) §49
 		In the address register indirect with displacement mode, the operand is in memory. The sum
 		of the address in the address register, which the effective address specifies, plus the sign-
 		extended 16-bit displacement integer in the extension word is the operand’s address in
 		memory. */
 		case 5:
-			var d = this.memory.getInt8(address+1);
-			return { bytes: 1, str: '(d,A'+n+')' }; //d16
+			d = this.memory.getInt16(this.disassemblePointer);
+			this.disassemblePointer+= 2;
+			return '('+d+',A'+n+')';
 
-		/* Address Register Indirect with Index (8-Bit Displacement) (1 extension word) Mode #50
+		/* Address Register Indirect with Index (8-Bit Displacement) (1 extension word) Mode §50
 		This addressing mode requires one extension word that contains an index register indicator
 		and an 8-bit displacement. The index register indicator includes size and scale information.
 		In this mode, the operand is in memory. The operand’s address is the sum of the address
@@ -242,23 +251,41 @@ m68000.prototype.addressingModeToStr = function (address, mode, n) {
 		eight bits; and the index register’s sign-extended contents (possibly scaled). The user must
 		specify the address register, the displacement, and the index register in this mode. */
 		case 6:
-			return { bytes: 0, str: '(d,A'+n+',X'+n+')' }; //d8
-
+			i = this.memory.getInt8(this.disassemblePointer);
+			this.disassemblePointer+= 1;
+			d = this.memory.getInt8(this.disassemblePointer);
+			this.disassemblePointer+= 1;
+			return '('+d+',A'+n+',X'+i+')';
 		case 7:
 			switch (n) {
-				// (xxx).W
+				// Absolute Short Addressing Mode §59
 				case 0:
+					d = this.memory.getInt16(this.disassemblePointer);
+					this.disassemblePointer+= 2;
+					return '('+d+').W';
 
-				// (xxx).L
+				// Absolute Short Addressing Mode §59
 				case 1:
+					d = this.memory.getUint32(this.disassemblePointer);
+					this.disassemblePointer+= 4;
+					return '('+d+').L';
 
-				// (d16,PC)
+				// Program Counter Indirect with Displacement Mode §54
 				case 2:
+					d = this.memory.getInt16(this.disassemblePointer);
+					this.disassemblePointer+= 2;
+					return '('+d+',PC)';
 
-				// (d8,PC,Xn)
+				// Program Counter Indirect with Index (8-Bit Displacement) Mode §55
 				case 3:
+					i = this.memory.getInt8(this.disassemblePointer);
+					this.disassemblePointer+= 1;
+					d = this.memory.getInt8(this.disassemblePointer);
+					this.disassemblePointer+= 1;
+					return '('+d+',PC,X'+i+')';
 			}
 	}
+	throw Error('Addressing mode not supported');
 }
 
 module.exports = m68000;
