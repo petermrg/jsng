@@ -149,11 +149,11 @@ var m68000 = function(memory) {
 }
 
 m68000.prototype.disassemble = function (address) {
-	this.disassemblePointer = address || this.disassemblePointer;
+	this.disassemblePointer = (arguments.length == 1) ? address : this.disassemblePointer;
 	var instruction = this.memory.getUint16(address);
 	this.disassemblePointer+= 2;
 	var opcode = (instruction >> 12) & 0x0F,
-		Rx, Ry, opmode, mode, Dn;
+		Rx, Ry, opmode, mode, Dn, size;
 	switch (opcode) {
 
 		// 0000 Bit Manipulation/MOVEP/Immediate
@@ -190,11 +190,12 @@ m68000.prototype.disassemble = function (address) {
 			opmode = (instruction >> 6) & 0x07;
 			mode = (instruction >> 3) & 0x07;
 			Ry = instruction & 0x07;
-			var str = 'ADD' + ['', '.W', '.L'][opmode & 0x3] + ' ';
+			size = opmode & 0x3;
+			var str = 'ADD' + ['', '.W', '.L'][size] + ' ';
 			if (opmode < 4) {
-				str+= this.addressingModeToStr(mode, Ry)+', D'+Rx;
+				str+= this.addressingModeToStr(mode, Ry, size)+', D'+Rx;
 			} else {
-				str+= 'D'+Rx + this.addressingModeToStr(mode, Ry);
+				str+= 'D'+Rx + this.addressingModeToStr(mode, Ry, size);
 			}
 			return str;
 
@@ -209,7 +210,7 @@ m68000.prototype.disassemble = function (address) {
 // 	return (n < 8) n : (n - 16);
 // }
 
-m68000.prototype.addressingModeToStr = function (mode, n) {
+m68000.prototype.addressingModeToStr = function (mode, n, size) {
 	var d, i;
 	switch (mode) {
 
@@ -251,11 +252,12 @@ m68000.prototype.addressingModeToStr = function (mode, n) {
 		eight bits; and the index register’s sign-extended contents (possibly scaled). The user must
 		specify the address register, the displacement, and the index register in this mode. */
 		case 6:
-			i = this.memory.getInt8(this.disassemblePointer);
+			i = this.memory.getInt8(this.disassemblePointer) & 0x7;
 			this.disassemblePointer+= 1;
 			d = this.memory.getInt8(this.disassemblePointer);
 			this.disassemblePointer+= 1;
 			return '('+d+',A'+n+',X'+i+')';
+
 		case 7:
 			switch (n) {
 				// Absolute Short Addressing Mode §59
@@ -278,11 +280,30 @@ m68000.prototype.addressingModeToStr = function (mode, n) {
 
 				// Program Counter Indirect with Index (8-Bit Displacement) Mode §55
 				case 3:
-					i = this.memory.getInt8(this.disassemblePointer);
+					i = this.memory.getInt8(this.disassemblePointer) & 0x7;
 					this.disassemblePointer+= 1;
 					d = this.memory.getInt8(this.disassemblePointer);
 					this.disassemblePointer+= 1;
 					return '('+d+',PC,X'+i+')';
+
+				// Immediate Data §60
+				case 4:
+					switch (size) {
+						case 0:
+							d = this.memory.getInt8(this.disassemblePointer);
+							this.disassemblePointer+= 1;
+							return '#'+d;
+
+						case 1:
+							d = this.memory.getInt16(this.disassemblePointer);
+							this.disassemblePointer+= 2;
+							return '#'+d;
+
+						case 2:
+							d = this.memory.getInt32(this.disassemblePointer);
+							this.disassemblePointer+= 4;
+							return '#'+d;
+					}
 			}
 	}
 	throw Error('Addressing mode not supported');

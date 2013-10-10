@@ -31,6 +31,10 @@ Memory.prototype.getInt32 = function (address) {
 	return this.data.getInt32(address - this.startAddress, this.littleEndian);
 }
 
+Memory.prototype.getUint32 = function (address) {
+	return this.data.getUint32(address - this.startAddress, this.littleEndian);
+}
+
 Memory.prototype.setInt8 = function (address, value) {
 	this.data.setInt8(address - this.startAddress, value);
 }
