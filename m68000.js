@@ -195,7 +195,7 @@ m68000.prototype.disassemble = function (address) {
 			if (opmode < 4) {
 				str+= this.addressingModeToStr(mode, Ry, size)+', D'+Rx;
 			} else {
-				str+= 'D'+Rx + this.addressingModeToStr(mode, Ry, size);
+				str+= 'D'+Rx + ', ' + this.addressingModeToStr(mode, Ry, size);
 			}
 			return str;
 
