@@ -1,9 +1,11 @@
+var format = require('./lib/util.js').format;
+
 var SIZES = ['', '.W', '.L'];
 
 /**
  * Motorola 68000 disassembler
  *
- * @param  {Memory} memory
+ * @param {Memory} memory
  */
 m68000dasm = function(memory) {
 	this.memory = memory;
@@ -23,7 +25,7 @@ m68000dasm.prototype.disassemble = function (address) {
 
 	var opcode = (instruction >> 12) & 0x0F,
 		opcode2,
-		rx, ry, opmode, mode, result, size, data, bit;
+		rx, ry, rm, opmode, mode, size, data, bit;
 
 	switch (opcode) {
 
@@ -37,7 +39,7 @@ m68000dasm.prototype.disassemble = function (address) {
 					mode = (instruction >> 3) & 0x01;
 					rx = instruction & 0x07;
 					data = this.getImmediateData(size);
-					return 'ADDI' + SIZES[size] + ' #' + data + ',' + this.getEffectiveAddress(mode, rx, size);
+					return format('ADDI%s #%d,%s', SIZES[size], data, this.getEffectiveAddress(mode, rx, size));
 				default:
 					throw Error('Unknown instruction');
 			}
@@ -53,11 +55,11 @@ m68000dasm.prototype.disassemble = function (address) {
 			data = (instruction >> 9) & 0x07;
 			size = (instruction >> 6) & 0x03;
 			bit = (instruction >> 8) & 0x01;
-			mode = (instruction >> 3) & 0x01;
+			mode = (instruction >> 3) & 0x07;
 			rx = instruction & 0x07;
 			if (bit == 0) {
 				// ADDQ: Add Quick; Immediate Data + Destination → Destination (p.115)
-
+				return format('ADDQ%s #%d,%s', SIZES[size], data, this.getEffectiveAddress(mode, rx, size));
 			} else {
 				throw Error('Wrong bit value');
 			}
@@ -76,11 +78,11 @@ m68000dasm.prototype.disassemble = function (address) {
 				// ABCD: Add Decimal with Extend; Source10 + Destination10 + X → Destination (p.106)
 				rx = (instruction >> 9) & 0x07;
 				ry = instruction & 0x07;
-				mode = (instruction >> 3) & 0x01;
-				if (mode == 0) {
-					return 'ABCD D' + ry + ',D' + rx;
+				rm = (instruction >> 3) & 0x01;
+				if (rm == 0) {
+					return format('ABCD D%d,D%d', ry, rx);
 				} else {
-					return 'ABCD -(A' + ry + '),-(A' + rx + ')';
+					return format('ABCD -(A%d),-(A%d)', ry, rx);
 				}
 			}
 			break;
@@ -92,20 +94,27 @@ m68000dasm.prototype.disassemble = function (address) {
 			mode = (instruction >> 3) & 0x07;
 			ry = instruction & 0x07;
 			size = opmode & 0x3;
+
 			if (size < 3) {
 				// ADD: Add; Source + Destination → Destination (p.108)
-				result = 'ADD' + SIZES[size] + ' ';
 				if (opmode < 4) {
-					result+= this.getEffectiveAddress(mode, ry, size)+',D'+rx;
+					//ADD <ea> + Dn → Dn
+					return format('ADD%s %s,D%d', SIZES[size], this.getEffectiveAddress(mode, ry, size), rx);
 				} else {
-					result+= 'D' + rx + ',' + this.getEffectiveAddress(mode, ry, size);
+					switch (mode) {
+						// ADDX: Add Extended; Source + Destination + X → Destination (p.117)
+						case 0:
+							return format('ADDX%s D%d,D%d', SIZES[size], ry, rx);
+						case 1:
+							return format('ADDX%s -(A%d),-(A%d)', SIZES[size], ry, rx);
+						default:
+							//ADD Dn + <ea> → <ea>
+							return format('ADD%s D%d,%s', SIZES[size], rx, this.getEffectiveAddress(mode, ry, size));
+					}
 				}
-				return result;
 			} else {
 				// ADDA: Add Address; Source + Destination → Destination (p.111)
-				result = 'ADDA.' + ((opmode == 3) ? 'W' : 'L');
-				return result + ' ' + this.getEffectiveAddress(mode, ry, size) + ',A' + rx;
-
+				return format('ADDA.%s %s,A%d', (opmode == 3) ? 'W' : 'L', this.getEffectiveAddress(mode, ry, size), rx);
 			}
 			break;
 

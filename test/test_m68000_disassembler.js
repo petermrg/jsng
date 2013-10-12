@@ -273,6 +273,37 @@ describe('m68000', function () {
 			assert.equal(dasm.disassemble(7), 'ADDI.L #105250561,D7');
 		});
 
+		it('disassembles ADDQ', function () {
+			dasm.memory.setInt16(9, bin('0101 111 0 00 000 101'));
+			assert.equal(dasm.disassemble(9), 'ADDQ #7,D5');
+
+			dasm.memory.setInt16(1, bin('0101 101 0 01 000 001'));
+			assert.equal(dasm.disassemble(1), 'ADDQ.W #5,D1');
+
+			dasm.memory.setInt32(9, bin('0101 010 0 10 110 111  00000101 01000000'));
+			assert.equal(dasm.disassemble(9), 'ADDQ.L #2,(64,A7,X5)');
+		});
+
+		it('disassembles ADDX', function () {
+			dasm.memory.setInt16(9, bin('1101 001 1 00 00 0 010'));
+			assert.equal(dasm.disassemble(9), 'ADDX D2,D1');
+
+			dasm.memory.setInt16(9, bin('1101 011 1 01 00 0 100'));
+			assert.equal(dasm.disassemble(9), 'ADDX.W D4,D3');
+
+			dasm.memory.setInt16(9, bin('1101 110 1 10 00 0 101'));
+			assert.equal(dasm.disassemble(9), 'ADDX.L D5,D6');
+
+			dasm.memory.setInt16(0, bin('1101 001 1 00 00 1 010'));
+			assert.equal(dasm.disassemble(0), 'ADDX -(A2),-(A1)');
+
+			dasm.memory.setInt16(0, bin('1101 011 1 01 00 1 100'));
+			assert.equal(dasm.disassemble(0), 'ADDX.W -(A4),-(A3)');
+
+			dasm.memory.setInt16(0, bin('1101 110 1 10 00 1 101'));
+			assert.equal(dasm.disassemble(0), 'ADDX.L -(A5),-(A6)');
+		});
+
 
 	});
 
