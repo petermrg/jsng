@@ -341,6 +341,107 @@ describe('m68000', function () {
             assert.equal(dasm.disassemble(9), 'ANDI #1,CCR');
         });
 
+        it('disassembles ASL', function () {
+            dasm.memory.setInt16(9, bin('1110 001 1 00 1 00 010'));
+            assert.equal(dasm.disassemble(9), 'ASL D1,D2');
+
+            dasm.memory.setInt16(9, bin('1110 101 1 01 0 00 110'));
+            assert.equal(dasm.disassemble(9), 'ASL.W #5,D6');
+
+            dasm.memory.setInt16(9, bin('1110 101 1 10 0 00 110'));
+            assert.equal(dasm.disassemble(9), 'ASL.L #5,D6');
+
+            dasm.memory.setInt16(9, bin('1110 000 1 11 010 110'));
+            assert.equal(dasm.disassemble(9), 'ASL (A6)');
+
+            dasm.memory.setInt16(9, bin('1110 000 1 11 100 110'));
+            assert.equal(dasm.disassemble(9), 'ASL -(A6)');
+        });
+
+        it('disassembles ASR', function () {
+            dasm.memory.setInt16(0, bin('1110 001 1 00 1 00 010'));
+            assert.equal(dasm.disassemble(0), 'ASL D1,D2');
+
+            dasm.memory.setInt16(0, bin('1110 101 1 01 0 00 110'));
+            assert.equal(dasm.disassemble(0), 'ASL.W #5,D6');
+
+            dasm.memory.setInt16(0, bin('1110 101 1 10 0 00 110'));
+            assert.equal(dasm.disassemble(0), 'ASL.L #5,D6');
+
+            dasm.memory.setInt16(0, bin('1110 000 1 11 010 110'));
+            assert.equal(dasm.disassemble(0), 'ASL (A6)');
+
+            dasm.memory.setInt16(0, bin('1110 000 1 11 100 110'));
+            assert.equal(dasm.disassemble(0), 'ASL -(A6)');
+        });
+
+        it('dissasembles Bcc (with all possible condition codes)', function() {
+            dasm.memory.setInt16(0, bin('0110 0100 10000001'));
+            assert.equal(dasm.disassemble(0), 'BCC *-127');
+
+            dasm.memory.setInt32(0, bin('0110 0101 00000000  00000001 10000000'));
+            assert.equal(dasm.disassemble(0), 'BCS *+384');
+
+            dasm.memory.setInt16(0, bin('0110 0111 10000001'));
+            assert.equal(dasm.disassemble(0), 'BEQ *-127');
+
+            dasm.memory.setInt32(0, bin('0110 1100 00000000  10000001 10000001'));
+            assert.equal(dasm.disassemble(0), 'BGE *-32383');
+
+            dasm.memory.setInt16(0, bin('0110 1110 10000001'));
+            assert.equal(dasm.disassemble(0), 'BGT *-127');
+
+            dasm.memory.setInt32(0, bin('0110 0010 00000000  00000001 10000000'));
+            assert.equal(dasm.disassemble(0), 'BHI *+384');
+
+            dasm.memory.setInt16(0, bin('0110 1111 10000001'));
+            assert.equal(dasm.disassemble(0), 'BLE *-127');
+
+            dasm.memory.setInt32(0, bin('0110 0011 00000000  00000001 10000000'));
+            assert.equal(dasm.disassemble(0), 'BLS *+384');
+
+            dasm.memory.setInt16(0, bin('0110 1101 10000001'));
+            assert.equal(dasm.disassemble(0), 'BLT *-127');
+
+            dasm.memory.setInt32(0, bin('0110 1011 00000000  00000001 10000000'));
+            assert.equal(dasm.disassemble(0), 'BMI *+384');
+
+            dasm.memory.setInt16(0, bin('0110 0110 10000001'));
+            assert.equal(dasm.disassemble(0), 'BNE *-127');
+
+            dasm.memory.setInt32(0, bin('0110 1010 00000000  00000001 10000000'));
+            assert.equal(dasm.disassemble(0), 'BPL *+384');
+
+            dasm.memory.setInt16(0, bin('0110 1000 10000001'));
+            assert.equal(dasm.disassemble(0), 'BVC *-127');
+
+            dasm.memory.setInt32(0, bin('0110 1001 00000000  00000001 10000000'));
+            assert.equal(dasm.disassemble(0), 'BVS *+384');
+        });
+
+        it('disassembles BCHG', function() {
+            dasm.memory.setInt16(0, bin('0000 111 101 000 100'));
+            assert.equal(dasm.disassemble(0), 'BCHG D7,D4');
+
+            dasm.memory.setInt32(0, bin('0000 100001 010 100  0000 0000 0000 1010'));
+            assert.equal(dasm.disassemble(0), 'BCHG #10,(A4)');
+        });
+
+        it('disassembles BCLR', function() {
+            dasm.memory.setInt16(0, bin('0000 111 110 000 101'));
+            assert.equal(dasm.disassemble(0), 'BCLR D7,D5');
+
+            dasm.memory.setInt32(0, bin('0000 100010 010 110  0000 0000 0000 1001'));
+            assert.equal(dasm.disassemble(0), 'BCLR #9,(A6)');
+        });
+
+        it('dissasembles BRA', function() {
+            dasm.memory.setInt16(0, bin('0110 0000 10000001'));
+            assert.equal(dasm.disassemble(0), 'BRA *-127');
+
+            dasm.memory.setInt32(0, bin('0110 0000 00000000  11000001 10000011'));
+            assert.equal(dasm.disassemble(0), 'BRA *-15997');
+        });
 
     });
 

@@ -5,6 +5,9 @@ var SIZES = ['', '.W', '.L'],
     SIZE_WORD = 1,
     SIZE_LONG = 2;
 
+// Conditional tests (p.90)
+var CONDITIONS = ['T', 'F', 'HI', 'LS', 'CC', 'CS', 'NE', 'EQ', 'VC', 'VS', 'PL', 'MI', 'GE', 'LT', 'GT', 'LE'];
+
 /**
  * Motorola 68000 disassembler
  *
@@ -27,17 +30,24 @@ m68000dasm.prototype.disassemble = function (address) {
     this.pointer+= 2;
 
     var opcode = (instruction >> 12) & 0x0F,
-        opcode2,
-        rx, ry, rm, opmode, mode, size, data, bit;
+        opcode2, rx, ry, rm, dr, opmode, mode, size, data, bit, cond, disp;
 
     switch (opcode) {
 
         // 0000 Bit Manipulation/MOVEP/Immediate
         case 0:
+            // ANDItoCCR: 0000 001 000 111 100
+            // ANDI     : 0000 001 0sz mod reg
+            // ADDI     : 0000 011 0sz mod reg
+            // BCHG reg : 0000 reg 101 mod reg
+            // BCHG imm : 0000 100 001 mod reg
+            // BCLR     : 0000 reg 110 mod reg
+
             opcode2 = (instruction >> 8) & 0x0F;
             switch (opcode2) {
                 case 2:
                     if ((instruction & 0xFF) == 0x3C) {
+                    	// ANDI to CCR: CCR AND Immediate; Source Λ CCR → CCR (p.124)
                         data = this.getImmediateData(SIZE_WORD);
                         if (data >> 8 != 0) {
                             throw Error(format('ANDI to CCR most significant byte (%d) must be 0', data));
@@ -59,7 +69,38 @@ m68000dasm.prototype.disassemble = function (address) {
                     data = this.getImmediateData(size);
                     return format('ADDI%s #%d,%s', SIZES[size], data, this.getEffectiveAddress(mode, rx, size));
                 default:
-                    throw Error('Unknown instruction');
+                    opcode2 = instruction >> 6;
+                    mode = (instruction >> 3) & 0x07;
+                    if ((opcode2 & 0x7) == 0x05) {
+                        // BCHG: Test a Bit and Change; bit number dynamic, specified in a register (p.132)
+                        rx = (instruction >> 9) & 0x07;
+                        ry = instruction & 0x07;
+                        return format('BCHG D%d,%s', rx, this.getEffectiveAddress(mode, ry, SIZE_BYTE));
+                    } else if (opcode2 == 0x21) {
+                        // BCHG: Test a Bit and Change; bit number static, specified as immediate data (p.133)
+                        bit = this.getImmediateData(SIZE_WORD);
+                        if ((bit & 0xFFFFFF80) != 0) {
+                            throw Error('Bad BCHG bit number data')
+                        }
+                        bit%= 32;
+                        rx = instruction & 0x07;
+                        return format('BCHG #%d,%s', bit, this.getEffectiveAddress(mode, rx, SIZE_BYTE));
+                    } else if ((opcode2 & 0x7) == 0x06) {
+                        // BCLR: Test a Bit and clear; bit number dynamic, specified in a register (p.134)
+                        rx = (instruction >> 9) & 0x07;
+                        ry = instruction & 0x07;
+                        return format('BCLR D%d,%s', rx, this.getEffectiveAddress(mode, ry, SIZE_BYTE));
+                    } else if (opcode2 == 0x22) {
+                        // BCLR: Test a Bit and clear; bit number static, specified as immediate data (p.136)
+                        bit = this.getImmediateData(SIZE_WORD);
+                        if ((bit & 0xFFFFFF80) != 0) {
+                            console.log(bit & 0xFFFFFF80);
+                            throw Error('Bad BCLR bit number data')
+                        }
+                        bit%= 32;
+                        rx = instruction & 0x07;
+                        return format('BCLR #%d,%s', bit, this.getEffectiveAddress(mode, rx, SIZE_BYTE));
+                    }
             }
             break;
 
@@ -84,6 +125,24 @@ m68000dasm.prototype.disassemble = function (address) {
             break;
 
         // 0110 Bcc/BSR/BRA
+        case 6:
+            cond = (instruction >> 8) & 0x0F;
+            disp = instruction & 0xFF;
+            if (disp == 0x00) {
+                disp = this.getImmediateData(SIZE_WORD);
+            } else if (disp >= 0x80) {
+                // convert byte to signed int (sign extension)129
+                disp = (disp | 0xFFFFFF00)|0;
+            }
+            if (cond == 0x00) {
+                // BRA: Branch Always: PC + dn → PC (p.159)
+                return format('BRA *%s%d', (disp >= 0)?'+':'', disp);
+            } else {
+                // Bcc: Branch Conditionally; If Condition True Then PC + dn → PC (p.129)
+                return format('B%s *%s%d', CONDITIONS[cond], (disp >= 0)?'+':'', disp);
+            }
+            break;
+
         // 0111 MOVEQ
         // 1000 OR/DIV/SBCD
         // 1001 SUB/SUBX
@@ -149,10 +208,31 @@ m68000dasm.prototype.disassemble = function (address) {
             break;
 
         // 1110 Shift/Rotate/Bit Field
+        case 14:
+            rx = (instruction >> 9) & 0x07;
+            ry = instruction & 0x07;
+            size = (instruction >> 6) & 0x03;
+            dr = (instruction >> 8) & 0x01;
+            mode = (instruction >> 3) & 0x7;
+            if (size < 3 && (mode & 0x3) == 0) {
+                // ASL, ASR: Arithmetic Shift (register shifts); Destination Shifted By Count → Destination (p.125)
+                if (mode == 0) {
+                    return format('AS%s%s #%d,D%d', dr?'L':'R', SIZES[size], rx, ry);
+                }
+                else {
+                    return format('AS%s%s D%d,D%d', dr?'L':'R', SIZES[size], rx, ry);
+                }
+            } else if (rx == 0 && size == 3) {
+                // ASL, ASR: Arithmetic Shift (memory shifts) (p.127)
+                // @todo size of operation? it's always a byte?
+                return format('AS%s %s', dr?'L':'R', this.getEffectiveAddress(mode, ry, SIZE_BYTE));
+            }
+            break;
+
         // 1111 Coprocessor Interface/MC68040 and CPU32 Extensions
 
     }
-    throw Error('Unknown instruction opcode');
+    throw Error('Unknown instruction');
 }
 
 // var signExtendNibble = function(n) {
@@ -248,7 +328,7 @@ m68000dasm.prototype.getEffectiveAddress = function (mode, reg, size) {
                     return '#' + this.getImmediateData(size);
             }
     }
-    throw Error('Addressing mode not supported');
+    throw Error('Addressing mode not supported: ' + mode);
 }
 
 m68000dasm.prototype.getImmediateData = function(size) {
