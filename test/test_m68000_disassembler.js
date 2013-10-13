@@ -265,12 +265,12 @@ describe('m68000', function () {
 			dasm.memory.setInt32(9, bin('00000110 00 000 101  11111111 00000001'));
 			assert.equal(dasm.disassemble(9), 'ADDI #1,D5');
 
-			dasm.memory.setInt32(9, bin('00000110 01 000 101  11111111 00000001'));
-			assert.equal(dasm.disassemble(9), 'ADDI.W #-255,D5');
+			dasm.memory.setInt32(9, bin('00000110 01 100 101  11111111 00000001'));
+			assert.equal(dasm.disassemble(9), 'ADDI.W #-255,-(A5)');
 
-			dasm.memory.setInt16(7, bin('00000110 10 000 111'));
+			dasm.memory.setInt16(7, bin('00000110 10 011 111'));
 			dasm.memory.setInt32(9, bin('000001100 1000101 11111111 00000001'));
-			assert.equal(dasm.disassemble(7), 'ADDI.L #105250561,D7');
+			assert.equal(dasm.disassemble(7), 'ADDI.L #105250561,(A7)+');
 		});
 
 		it('disassembles ADDQ', function () {
@@ -302,6 +302,43 @@ describe('m68000', function () {
 
 			dasm.memory.setInt16(0, bin('1101 110 1 10 00 1 101'));
 			assert.equal(dasm.disassemble(0), 'ADDX.L -(A5),-(A6)');
+		});
+
+		it('disassembles AND', function () {
+			dasm.memory.setInt16(1, bin('1100 111 000 010 010'));
+			assert.equal(dasm.disassemble(1), 'AND (A2),D7');
+
+			dasm.memory.setInt16(1, bin('1100 111 001 011 010'));
+			assert.equal(dasm.disassemble(1), 'AND.W (A2)+,D7');
+
+			dasm.memory.setInt16(1, bin('1100 111 010 100 011'));
+			assert.equal(dasm.disassemble(1), 'AND.L -(A3),D7');
+
+			dasm.memory.setInt32(1, bin('1100 111 100 101 110  01000000 00000001'));
+			assert.equal(dasm.disassemble(1), 'AND D7,(16385,A6)');
+
+			dasm.memory.setInt16(1, bin('1100 111 101 010 010'));
+			assert.equal(dasm.disassemble(1), 'AND.W D7,(A2)');
+
+			dasm.memory.setInt16(1, bin('1100 111 110 010 010'));
+			assert.equal(dasm.disassemble(1), 'AND.L D7,(A2)');
+		});
+
+		it('disassembles ANDI', function () {
+			dasm.memory.setInt32(9, bin('00000010 00 000 101  11111111 00000001'));
+			assert.equal(dasm.disassemble(9), 'ANDI #1,D5');
+
+			dasm.memory.setInt32(9, bin('00000010 01 100 101  11111111 00000001'));
+			assert.equal(dasm.disassemble(9), 'ANDI.W #-255,-(A5)');
+
+			dasm.memory.setInt16(7, bin('00000010 10 010 111'));
+			dasm.memory.setInt32(9, bin('000001100 1000101 11111111 00000001'));
+			assert.equal(dasm.disassemble(7), 'ANDI.L #105250561,(A7)');
+		});
+
+		it('disassembles ANDI to CCR', function () {
+			dasm.memory.setInt32(9, bin('00000010 00111100 00000000 00000001'));
+			assert.equal(dasm.disassemble(9), 'ANDI #1,CCR');
 		});
 
 

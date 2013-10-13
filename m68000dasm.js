@@ -1,6 +1,9 @@
 var format = require('./lib/util.js').format;
 
-var SIZES = ['', '.W', '.L'];
+var SIZES = ['', '.W', '.L'],
+	SIZE_BYTE = 0,
+	SIZE_WORD = 1,
+	SIZE_LONG = 2;
 
 /**
  * Motorola 68000 disassembler
@@ -33,10 +36,25 @@ m68000dasm.prototype.disassemble = function (address) {
 		case 0:
 			opcode2 = (instruction >> 8) & 0x0F;
 			switch (opcode2) {
+				case 2:
+					if ((instruction & 0xFF) == 0x3C) {
+						data = this.getImmediateData(SIZE_WORD);
+						if (data >> 8 != 0) {
+							throw Error(format('ANDI to CCR most significant byte (%d) must be 0', data));
+						}
+						return format('ANDI #%d,CCR', data);
+					} else {
+						// ANDI: AND Immediate: Immediate Data Λ Destination → Destination (p.122)
+						size = (instruction >> 6) & 0x03;
+						mode = (instruction >> 3) & 0x07;
+						rx = instruction & 0x07;
+						data = this.getImmediateData(size);
+						return format('ANDI%s #%d,%s', SIZES[size], data, this.getEffectiveAddress(mode, rx, size));
+					}
 				case 6:
 					// ADDI: Add Immediate; Immediate Data + Destination → Destination (p.113)
 					size = (instruction >> 6) & 0x03;
-					mode = (instruction >> 3) & 0x01;
+					mode = (instruction >> 3) & 0x07;
 					rx = instruction & 0x07;
 					data = this.getImmediateData(size);
 					return format('ADDI%s #%d,%s', SIZES[size], data, this.getEffectiveAddress(mode, rx, size));
@@ -83,6 +101,18 @@ m68000dasm.prototype.disassemble = function (address) {
 					return format('ABCD D%d,D%d', ry, rx);
 				} else {
 					return format('ABCD -(A%d),-(A%d)', ry, rx);
+				}
+			} else {
+				// AND: AND Logical; Source Λ Destination → Destination
+				rx = (instruction >> 9) & 0x07;
+				opmode = (instruction >> 6) & 0x07;
+				mode = (instruction >> 3) & 0x07;
+				ry = instruction & 0x07;
+				size = opmode & 0x03;
+				if (opmode < 4) {
+					return format('AND%s %s,D%d', SIZES[size], this.getEffectiveAddress(mode, ry, size), rx);
+				} else {
+					return format('AND%s D%d,%s', SIZES[size], rx, this.getEffectiveAddress(mode, ry, size));
 				}
 			}
 			break;
@@ -224,17 +254,17 @@ m68000dasm.prototype.getEffectiveAddress = function (mode, reg, size) {
 m68000dasm.prototype.getImmediateData = function(size) {
 	var d;
 	switch (size) {
-		case 0:
+		case SIZE_BYTE:
 			d = this.memory.getInt16(this.pointer) & 0xFF;
 			this.pointer+= 2;
 			return d;
 
-		case 1:
+		case SIZE_WORD:
 			d = this.memory.getInt16(this.pointer);
 			this.pointer+= 2;
 			return d;
 
-		case 2:
+		case SIZE_LONG:
 			d = this.memory.getInt32(this.pointer);
 			this.pointer+= 4;
 			return d;
