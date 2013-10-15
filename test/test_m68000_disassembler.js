@@ -483,7 +483,7 @@ describe('m68000', function () {
             assert.equal(dasm.disassemble(5), 'CLR.L D5');
         });
 
-        it('dissasembles CPM', function() {
+        it('dissasembles CMP', function() {
             dasm.memory.setInt16(5, bin('1011 111 000 000 101'));
             assert.equal(dasm.disassemble(5), 'CMP D5,D7');
 
@@ -494,7 +494,7 @@ describe('m68000', function () {
             assert.equal(dasm.disassemble(5), 'CMP.L A5,D7');
         });
 
-        it('dissasembles CPMA', function() {
+        it('dissasembles CMPA', function() {
             dasm.memory.setInt16(5, bin('1011 111 011 010 101'));
             assert.equal(dasm.disassemble(5), 'CMPA.W (A5),D7');
 
@@ -513,6 +513,87 @@ describe('m68000', function () {
             dasm.memory.setInt32(9, bin('000001100 1000101 11111111 00000001'));
             assert.equal(dasm.disassemble(7), 'CMPI.L #105250561,(A7)');
         });
+
+        it('dissasembles CMPM', function() {
+            dasm.memory.setInt16(5, bin('1011 111 100 001 101'));
+            assert.equal(dasm.disassemble(5), 'CMPM (A5)+,(A7)+');
+
+            dasm.memory.setInt16(5, bin('1011 111 101 001 101'));
+            assert.equal(dasm.disassemble(5), 'CMPM.W (A5)+,(A7)+');
+
+            dasm.memory.setInt16(5, bin('1011 111 110 001 101'));
+            assert.equal(dasm.disassemble(5), 'CMPM.L (A5)+,(A7)+');
+        });
+
+        it('dissasembles DBcc (with all possible condition codes)', function() {
+            dasm.memory.setInt32(0, bin('0101 0100 11001 101  11111111 10000001'));
+            assert.equal(dasm.disassemble(0), 'DBCC D5,*-127');
+
+            dasm.memory.setInt32(0, bin('0101 0101 11001 101  00000001 10000000'));
+            assert.equal(dasm.disassemble(0), 'DBCS D5,*+384');
+
+            dasm.memory.setInt32(0, bin('0101 0111 11001 101  11111111 10000001'));
+            assert.equal(dasm.disassemble(0), 'DBEQ D5,*-127');
+
+            dasm.memory.setInt32(0, bin('0101 0001 11001 101  11111111 10000001'));
+            assert.equal(dasm.disassemble(0), 'DBF D5,*-127');
+
+            dasm.memory.setInt32(0, bin('0101 1100 11001 101  10000001 10000001'));
+            assert.equal(dasm.disassemble(0), 'DBGE D5,*-32383');
+
+            dasm.memory.setInt32(0, bin('0101 1110 11001 101  11111111 10000001'));
+            assert.equal(dasm.disassemble(0), 'DBGT D5,*-127');
+
+            dasm.memory.setInt32(0, bin('0101 0010 11001 101  00000001 10000000'));
+            assert.equal(dasm.disassemble(0), 'DBHI D5,*+384');
+
+            dasm.memory.setInt32(0, bin('0101 1111 11001 101  11111111 10000001'));
+            assert.equal(dasm.disassemble(0), 'DBLE D5,*-127');
+
+            dasm.memory.setInt32(0, bin('0101 0011 11001 101  00000001 10000000'));
+            assert.equal(dasm.disassemble(0), 'DBLS D5,*+384');
+
+            dasm.memory.setInt32(0, bin('0101 1101 11001 101  11111111 10000001'));
+            assert.equal(dasm.disassemble(0), 'DBLT D5,*-127');
+
+            dasm.memory.setInt32(0, bin('0101 1011 11001 101  00000001 10000000'));
+            assert.equal(dasm.disassemble(0), 'DBMI D5,*+384');
+
+            dasm.memory.setInt32(0, bin('0101 0110 11001 101  11111111 10000001'));
+            assert.equal(dasm.disassemble(0), 'DBNE D5,*-127');
+
+            dasm.memory.setInt32(0, bin('0101 1010 11001 101  00000001 10000000'));
+            assert.equal(dasm.disassemble(0), 'DBPL D5,*+384');
+
+            dasm.memory.setInt32(0, bin('0101 0000 11001 101  00000001 10000000'));
+            assert.equal(dasm.disassemble(0), 'DBT D5,*+384');
+
+            dasm.memory.setInt32(0, bin('0101 1000 11001 101  11111111 10000001'));
+            assert.equal(dasm.disassemble(0), 'DBVC D5,*-127');
+
+            dasm.memory.setInt32(0, bin('0101 1001 11001 101  00000001 10000000'));
+            assert.equal(dasm.disassemble(0), 'DBVS D5,*+384');
+        });
+
+        it('dissasembles DIVS', function() {
+            dasm.memory.setInt16(0, bin('1000 101 111 000 100'));
+            assert.equal(dasm.disassemble(0), 'DIVS.W D4,D5');
+
+            dasm.memory.setInt16(0, bin('1000 101 111 111 100'));
+            dasm.memory.setInt32(2, bin('1111 1111 1111 1111  0000 0000 0000 0000'));
+            assert.equal(dasm.disassemble(0), 'DIVS.W #-65536,D5');
+
+        })
+
+        it('dissasembles DIVU', function() {
+            dasm.memory.setInt16(0, bin('1000 101 011 000 100'));
+            assert.equal(dasm.disassemble(0), 'DIVU.W D4,D5');
+
+            dasm.memory.setInt16(0, bin('1000 101 011 111 100'));
+            dasm.memory.setInt32(2, bin('1111 1111 1111 1111  0000 0000 0000 0000'));
+            assert.equal(dasm.disassemble(0), 'DIVU.W #-65536,D5'); //@todo set this positive
+        })
+
     });
 
 });

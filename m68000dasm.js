@@ -1,12 +1,12 @@
 var format = require('util').format;
 
-var SIZES = ['', '.W', '.L'],
-    SIZE_BYTE = 0,
-    SIZE_WORD = 1,
-    SIZE_LONG = 2;
+const SIZES = ['', '.W', '.L'];
+const SIZE_BYTE = 0;
+const SIZE_WORD = 1;
+const SIZE_LONG = 2;
 
 // Conditional tests (p.90)
-var CONDITIONS = ['T', 'F', 'HI', 'LS', 'CC', 'CS', 'NE', 'EQ', 'VC', 'VS', 'PL', 'MI', 'GE', 'LT', 'GT', 'LE'];
+const CONDITIONS = ['T', 'F', 'HI', 'LS', 'CC', 'CS', 'NE', 'EQ', 'VC', 'VS', 'PL', 'MI', 'GE', 'LT', 'GT', 'LE'];
 
 /**
  * Motorola 68000 disassembler
@@ -120,7 +120,7 @@ m68000dasm.prototype.disassemble = function (address) {
             // CLR: 0100 001 0sz mod reg - sz = 00|01|10
             opcode2 = (instruction >> 8) & 0x0F;
             switch (opcode2) {
-                case 2:
+                case 0x02:
                     // CLR: Clear an Operand; 0 → Destination (p.177)
                     size = (instruction >> 6) & 0x03;
                     return format('CLR%s %s', SIZES[size], this.getEffectiveAddress(instruction, size));
@@ -134,18 +134,26 @@ m68000dasm.prototype.disassemble = function (address) {
                         if (size != 0x03) throw Error('CHK: Unsupported size: ' + size);
                         return format('CHK %s,D%d', this.getEffectiveAddress(instruction, SIZE_WORD), rx);
                     }
+                    throw Error('Unknown Miscellaneous instruction');
             }
+            break;
 
         // 0101 ADDQ/SUBQ/Scc/DBcc/TRAPc c
         case 0x05:
-            data = (instruction >> 9) & 0x07;
+            // ADDQ: 0101 dat 0sz mod reg - dat = 000..111; sz = 00..10
+            // DBcc: 0101 cond 11 001 reg - cond = 0000..1111
             size = (instruction >> 6) & 0x03;
-            bit = (instruction >> 8) & 0x01;
-            if (bit == 0) {
-                // ADDQ: Add Quick; Immediate Data + Destination → Destination (p.115)
-                return format('ADDQ%s #%d,%s', SIZES[size], data, this.getEffectiveAddress(instruction, size));
+            if (size == 0x03) {
+                // DBcc: Test Condition, Decrement, and Branch;
+                // If Condition False Then (Dn – 1 → Dn; If Dn != – 1 Then PC + dn → PC) (p.194)
+                cond = (instruction >> 8) & 0x0F;
+                ry = instruction & 0x07;
+                disp = this.getImmediateData(SIZE_WORD);
+                return (format('DB%s D%d,*%s%d', CONDITIONS[cond], ry, (disp >= 0)?'+':'', disp));
             } else {
-                throw Error('Wrong bit value');
+                // ADDQ: Add Quick; Immediate Data + Destination → Destination (p.115)
+                data = (instruction >> 9) & 0x07;
+                return format('ADDQ%s #%d,%s', SIZES[size], data, this.getEffectiveAddress(instruction, size));
             }
             break;
 
@@ -173,36 +181,70 @@ m68000dasm.prototype.disassemble = function (address) {
 
         // 0111 MOVEQ
         case 0x07:
+            break;
 
         // 1000 OR/DIV/SBCD
         case 0x08:
+            // DIVS: 1000 reg 111 mod reg
+            rx = (instruction >> 9) & 0x07;
+            opmode = (instruction >> 6) & 0x07;
+            switch (opmode) {
+                case 0x03:
+                    // DIVU: Unsigned Divide; Destination ÷ Source → Destination (p.200)
+                    // DIVU.W <ea> ,Dn32/16 → 16r – 16q
+                    return format('DIVU.W %s,D%d', this.getEffectiveAddress(instruction, SIZE_LONG), rx);
+                case 0x07:
+                    // DIVS: Signed Divide; Destination ÷ Source → Destination (p.196)
+                    // DIVS.W <ea> ,Dn32/16 → 16r – 16q
+                    return format('DIVS.W %s,D%d', this.getEffectiveAddress(instruction, SIZE_LONG), rx);
+            }
+            break;
 
         // 1001 SUB/SUBX
         case 0x09:
+            break;
 
         // 1010 (Unassigned, Reserved)
         case 0x0A:
+            break;
 
         // 1011 CMP/EOR
         case 0x0B:
-            // CMP: 1011 reg opm mod reg
+            // CMP : 1011 reg opm mod reg
+            // CMPA: 1011 reg opm mod reg
+            // CMPM: 1011 reg 1sz 001 reg
             rx = (instruction >> 9) & 0x07;
             opmode = (instruction >> 6) & 0x07;
             switch (opmode) {
                 case 0x00:
-                    // CPM: Compare; Destination – Source → cc (p.179)
+                    // CMP: Compare; Destination – Source → cc (p.179)
                     return format('CMP%s %s,D%d', SIZES[SIZE_BYTE], this.getEffectiveAddress(instruction, SIZE_BYTE), rx);
                 case 0x01:
-                    // CPM: Compare; Destination – Source → cc (p.179)
+                    // CMP: Compare; Destination – Source → cc (p.179)
                     return format('CMP%s %s,D%d', SIZES[SIZE_WORD], this.getEffectiveAddress(instruction, SIZE_WORD), rx);
                 case 0x02:
-                    // CPM: Compare; Destination – Source → cc (p.179)
+                    // CMP: Compare; Destination – Source → cc (p.179)
                     return format('CMP%s %s,D%d', SIZES[SIZE_LONG], this.getEffectiveAddress(instruction, SIZE_LONG), rx);
                 case 0x03:
-                    // CPMA: Compare; Destination – Source → cc (p.181)
+                    // CMPA: Compare; Destination – Source → cc (p.181)
                     return format('CMPA%s %s,D%d', SIZES[SIZE_WORD], this.getEffectiveAddress(instruction, SIZE_WORD), rx);
+                case 0x04:
+                    // intentional fall-through
+                case 0x05:
+                    // intentional fall-through
+                case 0x06:
+                    // CMPM: Compare Memory; Destination – Source → cc (p.185)
+                    mode = (instruction >> 3) & 0x07;
+                    if (mode == 0x01) {
+                        size = opmode & 0x03;
+                        ry = instruction & 0x07;
+                        return format('CMPM%s (A%d)+,(A%d)+', SIZES[size], ry, rx);
+                    } else {
+                        throw Error('Unknown CMP/EOR instruction');
+                    }
+
                 case 0x07:
-                    // CPMA: Compare; Destination – Source → cc (p.181)
+                    // CMPA: Compare; Destination – Source → cc (p.181)
                     return format('CMPA%s %s,D%d', SIZES[SIZE_LONG], this.getEffectiveAddress(instruction, SIZE_LONG), rx);
             }
             break;
