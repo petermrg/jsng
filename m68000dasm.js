@@ -30,7 +30,7 @@ m68000dasm.prototype.disassemble = function (address) {
     this.pointer+= 2;
 
     var opcode = (instruction >> 12) & 0x0F,
-        opcode2, rx, ry, rm, dr, opmode, size, data, bit, cond, disp;
+        opcode2, rx, ry, dr, opmode, size, data, bit, cond, disp;
 
     switch (opcode) {
 
@@ -41,6 +41,8 @@ m68000dasm.prototype.disassemble = function (address) {
             // ADDI     : 0000 011 0sz mod reg
             // BCHG imm : 0000 100 001 mod reg
             // BSET imm : 0000 100 011 mod reg
+            // EORItoCCR: 0000 101 000 111 100
+            // EORI     : 0000 101 0sz mod reg
             // CMPI     : 0000 110 0sz mod reg
             // BCHG reg : 0000 reg 101 mod reg
             // BCLR     : 0000 reg 110 mod reg
@@ -66,6 +68,20 @@ m68000dasm.prototype.disassemble = function (address) {
                     size = (instruction >> 6) & 0x03;
                     data = this.getImmediateData(size);
                     return format('ADDI%s #%d,%s', SIZES[size], data, this.getEffectiveAddress(instruction, size));
+                case 0x0A:
+                    if ((instruction & 0xFF) == 0x3C) {
+                        // EORI: Exclusive-OR Immediate to Condition Code; Source ⊕ CCR → CCR → Destination (p.208)
+                        data = this.getImmediateData(SIZE_WORD);
+                        if (data >> 8 != 0) {
+                            throw Error(format('EORI to CCR most significant byte (%d) must be 0', data));
+                        }
+                        return format('EORI #%d,CCR', data);
+                    } else {
+                        // EORI: Exclusive-OR Immediate; Immediate Data ⊕ Destination → Destination (p.206)
+                        size = (instruction >> 6) & 0x03;
+                        data = this.getImmediateData(size);
+                        return format('EORI%s #%d,%s', SIZES[size], data, this.getEffectiveAddress(instruction, size));
+                    }
                 case 0x0C:
                     // CMPI: Compare Immediate: Destination - Immediate Data → cc (p.183)
                     size = (instruction >> 6) & 0x03;
@@ -116,8 +132,26 @@ m68000dasm.prototype.disassemble = function (address) {
         // 0011 Move Word
         // 0100 Miscellaneous
         case 0x04:
-            // CHK: 0100 reg sz0 mod reg - sz = 11|10
-            // CLR: 0100 001 0sz mod reg - sz = 00|01|10
+            // CHK    : 0100 reg sz0 mod reg - sz = 11|10
+            // CLR    : 0100 001 0sz mod reg - sz = 00|01|10
+            // EXT    : 0100 100 opm 000 reg
+            // ILLEGAL: 0100 101 011 111 100
+            // @todo refactor this crap
+            if (instruction == 0x4AFC) {
+                return format('ILLEGAL');
+            }
+            rx = (instruction >> 9) & 0x07;
+            mode = (instruction >> 3) & 0x07;
+            if ((mode == 0x00) && (rx == 0x04)) {
+                opmode = (instruction >> 6) & 0x07;
+                ry = instruction & 0x07;
+                switch (opmode) {
+                    case 0x02:
+                        return format('EXT.W D%d', ry);
+                    case 0x03:
+                        return format('EXT.L D%d', ry);
+                }
+            }
             opcode2 = (instruction >> 8) & 0x0F;
             switch (opcode2) {
                 case 0x02:
@@ -127,14 +161,12 @@ m68000dasm.prototype.disassemble = function (address) {
                 default:
                     // CHK: Check Register Against Bounds; If Dn < 0 or Dn > Source Then TRAP (p.173)
                     bit = (instruction >> 6) & 0x01;
-                    rx = (instruction >> 9) & 0x07;
                     size = (instruction >> 7) & 0x03;
                     if (bit == 0x00) {
-                        // Note: in this case 0x03 means Word! Long is not supported in M68000.
+                        // Note: in this case 0x03 means Word! Long is not supported in 68000.
                         if (size != 0x03) throw Error('CHK: Unsupported size: ' + size);
                         return format('CHK %s,D%d', this.getEffectiveAddress(instruction, SIZE_WORD), rx);
                     }
-                    throw Error('Unknown Miscellaneous instruction');
             }
             break;
 
@@ -213,6 +245,7 @@ m68000dasm.prototype.disassemble = function (address) {
             // CMP : 1011 reg opm mod reg
             // CMPA: 1011 reg opm mod reg
             // CMPM: 1011 reg 1sz 001 reg
+            // EOR : 1011 reg opm mod reg - opm = 100|101|110
             rx = (instruction >> 9) & 0x07;
             opmode = (instruction >> 6) & 0x07;
             switch (opmode) {
@@ -233,16 +266,16 @@ m68000dasm.prototype.disassemble = function (address) {
                 case 0x05:
                     // intentional fall-through
                 case 0x06:
-                    // CMPM: Compare Memory; Destination – Source → cc (p.185)
                     mode = (instruction >> 3) & 0x07;
+                    ry = instruction & 0x07;
+                    size = opmode & 0x03;
                     if (mode == 0x01) {
-                        size = opmode & 0x03;
-                        ry = instruction & 0x07;
+                        // CMPM: Compare Memory; Destination – Source → cc (p.185)
                         return format('CMPM%s (A%d)+,(A%d)+', SIZES[size], ry, rx);
                     } else {
-                        throw Error('Unknown CMP/EOR instruction');
+                        // EOR: Exclusive-OR Logical; Source ⊕ Destination → Destination (p.204)
+                        return format('EOR%s D%d,%s', SIZES[size], rx, this.getEffectiveAddress(instruction, size));
                     }
-
                 case 0x07:
                     // CMPA: Compare; Destination – Source → cc (p.181)
                     return format('CMPA%s %s,D%d', SIZES[SIZE_LONG], this.getEffectiveAddress(instruction, SIZE_LONG), rx);
@@ -250,27 +283,53 @@ m68000dasm.prototype.disassemble = function (address) {
             break;
 
         // 1100 AND/MUL/ABCD/EXG
+        // AND : 1100 reg opm mod reg
+        // ABCD: 1100 reg 100 00b reg
+        // EXG : 1100 reg 1opmode reg - opmode = 01000|01001|10001
+        // @todo refactor this
         case 0x0C:
-            if (((instruction >> 4) & 0x1F) == 0x10) {
-                // ABCD: Add Decimal with Extend; Source10 + Destination10 + X → Destination (p.106)
-                rx = (instruction >> 9) & 0x07;
-                ry = instruction & 0x07;
-                rm = (instruction >> 3) & 0x01;
-                if (rm == 0) {
-                    return format('ABCD D%d,D%d', ry, rx);
-                } else {
-                    return format('ABCD -(A%d),-(A%d)', ry, rx);
-                }
-            } else {
-                // AND: AND Logical; Source Λ Destination → Destination
-                rx = (instruction >> 9) & 0x07;
-                opmode = (instruction >> 6) & 0x07;
-                size = opmode & 0x03;
-                if (opmode < 4) {
-                    return format('AND%s %s,D%d', SIZES[size], this.getEffectiveAddress(instruction, size), rx);
-                } else {
-                    return format('AND%s D%d,%s', SIZES[size], rx, this.getEffectiveAddress(instruction, size));
-                }
+            opmode = (instruction >> 3) & 0x1F;
+            rx = (instruction >> 9) & 0x07;
+            ry = instruction & 0x07;
+            bit = (instruction >> 8) & 0x01;
+            switch (opmode) {
+                case 0x08:
+                    // EXG: Exchange Registers; Rx ←→ Ry (p.209)
+                    if (bit == 0x01) {
+                        return format('EXG D%d,D%d', rx, ry);
+                    }
+                    // intentional fall-through
+                case 0x09:
+                    // EXG: Exchange Registers; Rx ←→ Ry (p.209)
+                    if (bit == 0x01) {
+                        return format('EXG A%d,A%d', rx, ry);
+                    }
+                    // intentional fall-through
+                case 0x11:
+                    // EXG: Exchange Registers; Rx ←→ Ry (p.209)
+                    if (bit == 0x01) {
+                        return format('EXG D%d,A%d', rx, ry);
+                    }
+                    // intentional fall-through
+                default:
+                    if (((instruction >> 4) & 0x1F) == 0x10) {
+                        // ABCD: Add Decimal with Extend; Source10 + Destination10 + X → Destination (p.106)
+                        bit = (instruction >> 3) & 0x01;
+                        if (bit == 0) {
+                            return format('ABCD D%d,D%d', ry, rx);
+                        } else {
+                            return format('ABCD -(A%d),-(A%d)', ry, rx);
+                        }
+                    } else {
+                        // AND: AND Logical; Source Λ Destination → Destination (p.119)
+                        opmode = (instruction >> 6) & 0x07;
+                        size = opmode & 0x03;
+                        if (opmode < 4) {
+                            return format('AND%s %s,D%d', SIZES[size], this.getEffectiveAddress(instruction, size), rx);
+                        } else {
+                            return format('AND%s D%d,%s', SIZES[size], rx, this.getEffectiveAddress(instruction, size));
+                        }
+                    }
             }
             break;
 

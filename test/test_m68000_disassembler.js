@@ -594,6 +594,62 @@ describe('m68000', function () {
             assert.equal(dasm.disassemble(0), 'DIVU.W #-65536,D5'); //@todo set this positive
         })
 
-    });
+        it('dissasembles EOR', function() {
+            dasm.memory.setInt16(0, bin('1011 101 100 000 100'));
+            assert.equal(dasm.disassemble(0), 'EOR D5,D4');
+
+            dasm.memory.setInt16(0, bin('1011 101 101 000 100'));
+            assert.equal(dasm.disassemble(0), 'EOR.W D5,D4');
+
+            dasm.memory.setInt16(0, bin('1011 101 110 111 100'));
+            dasm.memory.setInt32(2, bin('1111 1111 1111 1111  0000 0000 0000 0000'));
+            assert.equal(dasm.disassemble(0), 'EOR.L D5,#-65536'); //@todo set this positive
+        })
+
+
+        it('dissasembles EORI', function() {
+            dasm.memory.setInt32(9, bin('00001010 00 000 101  11111111 00000001'));
+            assert.equal(dasm.disassemble(9), 'EORI #1,D5');
+
+            dasm.memory.setInt32(9, bin('00001010 01 100 101  11111111 00000001'));
+            assert.equal(dasm.disassemble(9), 'EORI.W #-255,-(A5)');
+
+            dasm.memory.setInt16(7, bin('00001010 10 010 111'));
+            dasm.memory.setInt32(9, bin('000001100 1000101 11111111 00000001'));
+            assert.equal(dasm.disassemble(7), 'EORI.L #105250561,(A7)');
+        });
+
+        it('disassembles EORI to CCR', function () {
+            dasm.memory.setInt32(9, bin('00001010 00111100 00000000 10000001'));
+            assert.equal(dasm.disassemble(9), 'EORI #129,CCR');
+        });
+
+        it('disassembles EXG', function() {
+            dasm.memory.setInt16(3, bin('1100 101 1 01000 111'));
+            assert.equal(dasm.disassemble(3), 'EXG D5,D7');
+
+            dasm.memory.setInt16(3, bin('1100 101 1 01001 111'));
+            assert.equal(dasm.disassemble(3), 'EXG A5,A7');
+
+            dasm.memory.setInt16(3, bin('1100 101 1 10001 111'));
+            assert.equal(dasm.disassemble(3), 'EXG D5,A7');
+        });
+
+        it('disassembles EXT', function() {
+            dasm.memory.setInt16(3, bin('0100100 010 000 101'));
+            assert.equal(dasm.disassemble(3), 'EXT.W D5');
+
+            dasm.memory.setInt16(3, bin('0100100 011 000 101'));
+            assert.equal(dasm.disassemble(3), 'EXT.L D5');
+        });
+
+        it('disassembles ILLEGAL', function() {
+            dasm.memory.setInt16(3, bin('0100101011111100'));
+            assert.equal(dasm.disassemble(3), 'ILLEGAL');
+        });
+
+
+
+ });
 
 });
