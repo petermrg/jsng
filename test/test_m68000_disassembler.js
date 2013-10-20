@@ -722,9 +722,20 @@ describe('m68000', function () {
         });
 
         it('disassembles MOVE from CCR', function() {
-            dasm.memory.setInt16(3, bin('0100001011 000 111'));
+            dasm.memory.setInt16(3, bin('0100 001011 000 111'));
             assert.equal(dasm.disassemble(3), 'MOVE CCR,D7');
         });
+
+        it('disassembles MOVE to CCR', function() {
+            dasm.memory.setInt16(3, bin('0100 010011 000 101'));
+            assert.equal(dasm.disassemble(3), 'MOVE D5,CCR');
+        });
+
+        it('disassembles MOVE from SR', function() {
+            dasm.memory.setInt16(3, bin('0100 000011 000 101'));
+            assert.equal(dasm.disassemble(3), 'MOVE SR,D5');
+        });
+
 
 });
 

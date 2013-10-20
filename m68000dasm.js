@@ -171,7 +171,9 @@ m68000dasm.prototype.disassemble = function (address) {
         // 0100 Miscellaneous
         case 0x04:
             // CLR        : 0100 001 0sz mod reg - sz = 00|01|10
+            // MOVEfromSR : 0100 000 011 mod reg
             // MOVEfromCCR: 0100 001 011 mod reg
+            // MOVEtoCCR  : 0100 010 011 mod reg
             // EXT        : 0100 100 opm 000 reg - opm = 010|011
             // Illegal    : 0100 101 011 111 100
             // LINK       : 0100 111 001 010 reg
@@ -179,9 +181,18 @@ m68000dasm.prototype.disassemble = function (address) {
             // JMP        : 0100 111 011 mod reg
             // LEA        : 0100 reg 111 mod reg
             // CHK        : 0100 reg sz0 mod reg - sz = 11|10
+            // MOVEM      : 0100 1d0 01s mod reg
             rx = (instruction >> 9) & 0x07;
             opmode = (instruction >> 6) & 0x07;
             switch (rx) {
+                case 0x00:
+                    switch (opmode) {
+                        case 0x03:
+                            // MOVE from SR: Move from the Status Register; SR → Destination (p.229)
+                            return format('MOVE SR,%s', this.getEAFromInstruction(instruction));
+                    }
+                    break;
+
                 case 0x01:
                     switch (opmode) {
                         case 0x00:
@@ -195,6 +206,14 @@ m68000dasm.prototype.disassemble = function (address) {
                         case 0x03:
                             // MOVE from CCR: Move from the Condition Code Register; CCR → Destination (p.225)
                             return format('MOVE CCR,%s', this.getEAFromInstruction(instruction));
+                    }
+                    break;
+
+                case 0x02:
+                    switch (opmode) {
+                        case 0x03:
+                            // MOVE to CCR: Move to Condition Code Register; Source → CCR (p.227)
+                            return format('MOVE %s,CCR', this.getEAFromInstruction(instruction));
                     }
                     break;
 
@@ -241,19 +260,26 @@ m68000dasm.prototype.disassemble = function (address) {
                     break;
             }
             // rest of cases
-            switch (opmode) {
-                case 0x07:
-                    // LEA: Load Effective Address (p.214)
-                    return format('LEA %s,A%d', this.getEAFromInstruction(instruction), rx);
-                default:
-                    bit = (instruction >> 6) & 0x01;
-                    size = (instruction >> 7) & 0x03;
-                    if (bit == 0x00) {
-                        // CHK: Check Register Against Bounds; If Dn < 0 or Dn > Source Then TRAP (p.173)
-                        // Note: in this case 0x03 means Word! Long is not supported in 68000.
-                        if (size != 0x03) throw Error('CHK: Unsupported size: ' + size);
-                        return format('CHK %s,D%d', this.getEAFromInstruction(instruction, SIZE_WORD), rx);
-                    }
+            if ((rx == 0x04 || rx == 0x06) && (opmode == 0x02 || opmode == 0x03)) {
+                // MOVEM: Move Multiple Registers (p.233)
+                dr = (instruction >> 10) & 0x01;
+                size = (instruction >> 6) & 0x01;
+
+            } else {
+                switch (opmode) {
+                    case 0x07:
+                        // LEA: Load Effective Address (p.214)
+                        return format('LEA %s,A%d', this.getEAFromInstruction(instruction), rx);
+                    default:
+                        bit = (instruction >> 6) & 0x01;
+                        size = (instruction >> 7) & 0x03;
+                        if (bit == 0x00) {
+                            // CHK: Check Register Against Bounds; If Dn < 0 or Dn > Source Then TRAP (p.173)
+                            // Note: in this case 0x03 means Word! Long is not supported in 68000.
+                            if (size != 0x03) throw Error('CHK: Unsupported size: ' + size);
+                            return format('CHK %s,D%d', this.getEAFromInstruction(instruction, SIZE_WORD), rx);
+                        }
+                }
             }
             break;
 
