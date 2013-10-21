@@ -37,93 +37,110 @@ m68000dasm.prototype.disassemble = function (address) {
         // 0000 Bit Manipulation/MOVEP/Immediate
         case 0x00:
             // ANDItoCCR: 0000 001 000 111 100
-            // ANDI     : 0000 001 0sz mod reg
-            // ADDI     : 0000 011 0sz mod reg
+            // ANDI     : 0000 001 0sz mod reg - sz = 00|01|10
+            // ADDI     : 0000 011 0sz mod reg - sz = 00|01|10
+            // BTST imm : 0000 100 000 mod reg
             // BCHG imm : 0000 100 001 mod reg
+            // BCLR imm : 0000 100 010 mod reg
             // BSET imm : 0000 100 011 mod reg
             // EORItoCCR: 0000 101 000 111 100
-            // EORI     : 0000 101 0sz mod reg
-            // CMPI     : 0000 110 0sz mod reg
+            // EORI     : 0000 101 0sz mod reg - sz = 00|01|10
+            // CMPI     : 0000 110 0sz mod reg - sz = 00|01|10
+            // BTST reg : 0000 reg 100 mod reg
             // BCHG reg : 0000 reg 101 mod reg
-            // BCLR     : 0000 reg 110 mod reg
+            // BCLR reg : 0000 reg 110 mod reg
             // BSET reg : 0000 reg 111 mod reg
-            opcode2 = (instruction >> 8) & 0x0F;
-            switch (opcode2) {
-                case 0x02:
-                    if ((instruction & 0xFF) == 0x3C) {
-                    	// ANDI to CCR: CCR AND Immediate; Source Λ CCR → CCR (p.124)
+            // MOVEP    : 0000 reg 1om 001 reg - om = 00|01|10|11
+            rx = (instruction >> 9) & 0x07;
+            opmode = (instruction >> 6) & 0x07;
+            mode = (instruction >> 3) & 0x07;
+            ry = instruction & 0x07;
+            switch (rx) {
+                case 0x01:
+                    if (instruction == 0x023C) {
+                        // ANDI to CCR: CCR AND Immediate; Source Λ CCR → CCR (p.124)
                         data = this.getImmediateData(SIZE_WORD);
-                        if (data >> 8 != 0) {
-                            throw Error(format('ANDI to CCR most significant byte (%d) must be 0', data));
-                        }
+                        if (data > 0xFF) throw Error(format('ANDI to CCR High Byte (%d) must be 0', data));
                         return format('ANDI #%d,CCR', data);
-                    } else {
+                    } else if (opmode <= 0x02) {
                         // ANDI: AND Immediate: Immediate Data Λ Destination → Destination (p.122)
-                        size = (instruction >> 6) & 0x03;
+                        size = opmode;
                         data = this.getImmediateData(size);
                         return format('ANDI%s #%d,%s', SIZES[size], data, this.getEAFromInstruction(instruction, size));
                     }
-                case 0x06:
-                    // ADDI: Add Immediate; Immediate Data + Destination → Destination (p.113)
-                    size = (instruction >> 6) & 0x03;
-                    data = this.getImmediateData(size);
-                    return format('ADDI%s #%d,%s', SIZES[size], data, this.getEAFromInstruction(instruction, size));
-                case 0x0A:
-                    if ((instruction & 0xFF) == 0x3C) {
-                        // EORI: Exclusive-OR Immediate to Condition Code; Source ⊕ CCR → CCR → Destination (p.208)
-                        data = this.getImmediateData(SIZE_WORD);
-                        if (data >> 8 != 0) {
-                            throw Error(format('EORI to CCR most significant byte (%d) must be 0', data));
-                        }
-                        return format('EORI #%d,CCR', data);
-                    } else {
-                        // EORI: Exclusive-OR Immediate; Immediate Data ⊕ Destination → Destination (p.206)
-                        size = (instruction >> 6) & 0x03;
+                    break;
+
+                case 0x03:
+                    if (opmode <= 0x02) {
+                        // ADDI: Add Immediate; Immediate Data + Destination → Destination (p.113)
+                        size = opmode;
                         data = this.getImmediateData(size);
-                        return format('EORI%s #%d,%s', SIZES[size], data, this.getEAFromInstruction(instruction, size));
+                        return format('ADDI%s #%d,%s', SIZES[size], data, this.getEAFromInstruction(instruction, size));
                     }
-                case 0x0C:
-                    // CMPI: Compare Immediate: Destination - Immediate Data → cc (p.183)
-                    size = (instruction >> 6) & 0x03;
-                    data = this.getImmediateData(size);
-                    return format('CMPI%s #%d,%s', SIZES[size], data, this.getEAFromInstruction(instruction, size));
-                default:
-                    opcode2 = instruction >> 6;
-                    switch (opcode2) {
-                        case 0x20:
+                    break;
+
+                case 0x04:
+                    switch (opmode) {
+                        case 0x00:
                             // BTST: Test a Bit; bit number static, specified as immediate data (p.166)
                             bit = this.getImmediateData(SIZE_WORD) % 32;
                             return format('BTST #%d,%s', bit, this.getEAFromInstruction(instruction, SIZE_BYTE));
-                        case 0x21:
+                        case 0x01:
                             // BCHG: Test a Bit and Change; bit number static, specified as immediate data (p.133)
                             bit = this.getImmediateData(SIZE_WORD) % 32;
                             return format('BCHG #%d,%s', bit, this.getEAFromInstruction(instruction, SIZE_BYTE));
-                        case 0x22:
-                            // BCLR: Test a Bit and clear; bit number static, specified as immediate data (p.136)
+                        case 0x02:
+                            // BCLR: Test a Bit and clear; bit number static, specified as immediate data (p.135)
                             bit = this.getImmediateData(SIZE_WORD) % 32;
                             return format('BCLR #%d,%s', bit, this.getEAFromInstruction(instruction, SIZE_BYTE));
-                        case 0x23:
+                        case 0x03:
                             // BSET: Test Bit and Set; bit number static, specified as immediate data (p.161)
                             bit = this.getImmediateData(SIZE_WORD) % 32;
                             return format('BSET #%d,%s', bit, this.getEAFromInstruction(instruction, SIZE_BYTE));
-                        default:
-                            opcode2 = opcode2 & 0x07;
-                            rx = (instruction >> 9) & 0x07;
-                            switch (opcode2) {
-                                case 0x04:
-                                    // BTST: Test Bit; bit number dynamic, specified in a register (p.167)
-                                    return format('BTST D%d,%s', rx, this.getEAFromInstruction(instruction, SIZE_BYTE));
-                                case 0x05:
-                                    // BCHG: Test Bit and Set; bit number dynamic, specified in a register (p.133)
-                                    return format('BCHG D%d,%s', rx, this.getEAFromInstruction(instruction, SIZE_BYTE));
-                                case 0x06:
-                                    // BCLR: Test Bit and Clear; bit number dynamic, specified in a register (p.137)
-                                    return format('BCLR D%d,%s', rx, this.getEAFromInstruction(instruction, SIZE_BYTE));
-                                case 0x07:
-                                    // BSET: Test Bit and Set; bit number dynamic, specified in a register (p.162)
-                                    return format('BSET D%d,%s', rx, this.getEAFromInstruction(instruction, SIZE_BYTE));
-                            }
                     }
+                    break;
+
+                case 0x05:
+                    if (instruction == 0x0A3C) {
+                        // EORI to CCR: Exclusive-OR Immediate to CCR; Source ⊕ CCR → CCR → Destination (p.208)
+                        data = this.getImmediateData(SIZE_WORD);
+                        if (data > 0xFF) throw Error(format('EORI to CCR High Byte (%d) must be 0', data));
+                        return format('EORI #%d,CCR', data);
+                    } else if (opmode <= 0x02) {
+                        // EORI: Exclusive-OR Immediate; Immediate Data ⊕ Destination → Destination (p.206)
+                        size = opmode;
+                        data = this.getImmediateData(size);
+                        return format('EORI%s #%d,%s', SIZES[size], data, this.getEAFromInstruction(instruction, size));
+                    }
+                    break;
+
+                case 0x06:
+                    if (opmode <= 0x02) {
+                        // CMPI: Compare Immediate: Destination - Immediate Data → cc (p.183)
+                        size = (instruction >> 6) & 0x03;
+                        data = this.getImmediateData(size);
+                        return format('CMPI%s #%d,%s', SIZES[size], data, this.getEAFromInstruction(instruction, size));
+                    }
+                    break;
+            }
+            // rest of cases
+            if (mode == 0x01 && opmode >= 0x04) {
+                // MOVEP:
+                throw Error('MOVEP not implemented');
+            }
+            switch (opmode) {
+                case 0x04:
+                    // BTST: Test Bit; bit number dynamic, specified in a register (p.167)
+                    return format('BTST D%d,%s', rx, this.getEAFromInstruction(instruction, SIZE_BYTE));
+                case 0x05:
+                    // BCHG: Test Bit and Set; bit number dynamic, specified in a register (p.133)
+                    return format('BCHG D%d,%s', rx, this.getEAFromInstruction(instruction, SIZE_BYTE));
+                case 0x06:
+                    // BCLR: Test Bit and Clear; bit number dynamic, specified in a register (p.135)
+                    return format('BCLR D%d,%s', rx, this.getEAFromInstruction(instruction, SIZE_BYTE));
+                case 0x07:
+                    // BSET: Test Bit and Set; bit number dynamic, specified in a register (p.162)
+                    return format('BSET D%d,%s', rx, this.getEAFromInstruction(instruction, SIZE_BYTE));
             }
             break;
 
