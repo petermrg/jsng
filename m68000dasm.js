@@ -219,15 +219,18 @@ m68000dasm.prototype.disassemble = function (address) {
 
                 case 0x04:
                     // EXT: Sign-Extend; Destination Sign-Extended → Destination (p.210)
-                    opmode = (instruction >> 6) & 0x07;
-                    ry = instruction & 0x07;
-                    switch (opmode) {
-                        case 0x02:
-                            return format('EXT.W D%d', ry);
-                        case 0x03:
-                            return format('EXT.L D%d', ry);
+                    mode = (instruction >> 3) & 0x07;
+                    if (mode == 0x00) {
+                        opmode = (instruction >> 6) & 0x07;
+                        ry = instruction & 0x07;
+                        switch (opmode) {
+                            case 0x02:
+                                return format('EXT.W D%d', ry);
+                            case 0x03:
+                                return format('EXT.L D%d', ry);
+                        }
+                        break;
                     }
-                    break;
 
                 case 0x05:
                     switch (opmode) {
@@ -262,9 +265,14 @@ m68000dasm.prototype.disassemble = function (address) {
             // rest of cases
             if ((rx == 0x04 || rx == 0x06) && (opmode == 0x02 || opmode == 0x03)) {
                 // MOVEM: Move Multiple Registers (p.233)
-                dr = (instruction >> 10) & 0x01;
-                size = (instruction >> 6) & 0x01;
-
+                dr = (instruction >> 10) & 0x01; // 0: reg to mem; 1: mem to reg
+                size = (instruction >> 6) & 0x01; // 0: word; 1: long
+                data = this.registerMaskToStr(this.getImmediateData(SIZE_WORD), dr);
+                if (dr == 0x00) {
+                    return format('MOVEM.%s %s,%s', size?'L':'W', data, this.getEAFromInstruction(instruction));
+                } else {
+                    return format('MOVEM.%s %s,%s', size?'L':'W', this.getEAFromInstruction(instruction), data);
+                }
             } else {
                 switch (opmode) {
                     case 0x07:
@@ -640,6 +648,26 @@ m68000dasm.prototype.getImmediateData = function(size) {
         default:
             throw Error('Wrong size value for immediate data')
     }
+}
+
+/**
+ * Get string representation of register mask
+ * @param  {integer} mask
+ * @param  {integer} direction 0: reg to mem; 1: mem to reg
+ * @return {string}
+ */
+m68000dasm.prototype.registerMaskToStr = function(mask, direction) {
+    var result = [],
+        regs = [
+            ['D0', 'D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7'],
+            ['A7', 'A6', 'A5', 'A4', 'A3', 'A2', 'A1', 'A0', 'D7', 'D6', 'D5', 'D4', 'D3', 'D2', 'D1', 'D0']];
+
+    for (var i = 0; i < 16; i++) {
+        if (((mask >> i) & 0x01) == 0x01) {
+            result.push(regs[direction][i]);
+        }
+    }
+    return result.join('/');
 }
 
 module.exports = m68000dasm;

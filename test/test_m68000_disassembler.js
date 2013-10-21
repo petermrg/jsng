@@ -736,6 +736,19 @@ describe('m68000', function () {
             assert.equal(dasm.disassemble(3), 'MOVE SR,D5');
         });
 
+        it('disassembles MOVEM', function() {
+            dasm.memory.setInt32(3, bin('01001 0 001 0 100 101  00011001 10001001'));
+            assert.equal(dasm.disassemble(3), 'MOVEM.W D0/D3/D7/A0/A3/A4,-(A5)');
+
+            dasm.memory.setInt32(3, bin('01001 0 001 1 100 101  00011001 10001001'));
+            assert.equal(dasm.disassemble(3), 'MOVEM.L D0/D3/D7/A0/A3/A4,-(A5)');
+
+            dasm.memory.setInt32(3, bin('01001 1 001 0 011 101  00011001 10001001'));
+            assert.equal(dasm.disassemble(3), 'MOVEM.W (A5)+,A7/A4/A0/D7/D4/D3');
+
+            dasm.memory.setInt32(3, bin('01001 1 001 1 011 101  00011001 10001001'));
+            assert.equal(dasm.disassemble(3), 'MOVEM.L (A5)+,A7/A4/A0/D7/D4/D3');
+        });
 
 });
 
