@@ -750,6 +750,33 @@ describe('m68000', function () {
             assert.equal(dasm.disassemble(3), 'MOVEM.L (A5)+,A7/A4/A0/D7/D4/D3');
         });
 
+        it('disassembles MOVEP', function() {
+            dasm.memory.setInt32(7, bin('0000 101 100 001 011  00000000 11111111'));
+            assert.equal(dasm.disassemble(7), 'MOVEP.W (255,A3),D5');
+
+            dasm.memory.setInt32(7, bin('0000 101 101 001 011  11111111 00000000'));
+            assert.equal(dasm.disassemble(7), 'MOVEP.L (-256,A3),D5');
+
+            dasm.memory.setInt32(7, bin('0000 101 110 001 011  00000000 11111111'));
+            assert.equal(dasm.disassemble(7), 'MOVEP.W D5,(255,A3)');
+
+            dasm.memory.setInt32(7, bin('0000 101 111 001 011  11111111 00000000'));
+            assert.equal(dasm.disassemble(7), 'MOVEP.L D5,(-256,A3)');
+        });
+
+        it('disassembles MOVEQ', function() {
+            dasm.memory.setInt16(7, bin('0111 101 0 11111111'));
+            assert.equal(dasm.disassemble(7), 'MOVEQ #-1,D5');
+
+            dasm.memory.setInt16(7, bin('0111 101 0 01111111'));
+            assert.equal(dasm.disassemble(7), 'MOVEQ #127,D5');
+        });
+
+        it('disassembles MULS', function() {
+        });
+
+
+
 });
 
 });

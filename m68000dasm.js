@@ -30,7 +30,7 @@ m68000dasm.prototype.disassemble = function (address) {
     this.pointer+= 2;
 
     var opcode = (instruction >> 12) & 0x0F,
-        opcode2, rx, ry, dr, opmode, size, data, bit, cond, disp;
+        rx, ry, dr, opmode, size, data, bit, cond, disp;
 
     switch (opcode) {
 
@@ -54,7 +54,6 @@ m68000dasm.prototype.disassemble = function (address) {
             rx = (instruction >> 9) & 0x07;
             opmode = (instruction >> 6) & 0x07;
             mode = (instruction >> 3) & 0x07;
-            ry = instruction & 0x07;
             switch (rx) {
                 case 0x01:
                     if (instruction == 0x023C) {
@@ -62,7 +61,8 @@ m68000dasm.prototype.disassemble = function (address) {
                         data = this.getImmediateData(SIZE_WORD);
                         if (data > 0xFF) throw Error(format('ANDI to CCR High Byte (%d) must be 0', data));
                         return format('ANDI #%d,CCR', data);
-                    } else if (opmode <= 0x02) {
+                    }
+                    if (opmode <= 0x02) {
                         // ANDI: AND Immediate: Immediate Data Λ Destination → Destination (p.122)
                         size = opmode;
                         data = this.getImmediateData(size);
@@ -106,7 +106,8 @@ m68000dasm.prototype.disassemble = function (address) {
                         data = this.getImmediateData(SIZE_WORD);
                         if (data > 0xFF) throw Error(format('EORI to CCR High Byte (%d) must be 0', data));
                         return format('EORI #%d,CCR', data);
-                    } else if (opmode <= 0x02) {
+                    }
+                    if (opmode <= 0x02) {
                         // EORI: Exclusive-OR Immediate; Immediate Data ⊕ Destination → Destination (p.206)
                         size = opmode;
                         data = this.getImmediateData(size);
@@ -124,10 +125,17 @@ m68000dasm.prototype.disassemble = function (address) {
                     break;
             }
             // rest of cases
-            if (mode == 0x01 && opmode >= 0x04) {
-                // MOVEP:
-                throw Error('MOVEP not implemented');
+            if (((instruction >> 8) & 1) == 0x01 && mode == 0x01) {
+                // MOVEP: Move Peripheral Data; Source → Destination (p.235)
+                ry = instruction & 0x07;
+                data = this.getImmediateData(SIZE_WORD);
+                if (opmode & 0x02) {
+                    return format('MOVEP.%s D%d,(%d,A%d)', (opmode & 0x01)?'L':'W', rx, data, ry);
+                } else {
+                    return format('MOVEP.%s (%d,A%d),D%d', (opmode & 0x01)?'L':'W', data, ry, rx);
+                }
             }
+
             switch (opmode) {
                 case 0x04:
                     // BTST: Test Bit; bit number dynamic, specified in a register (p.167)
@@ -290,21 +298,20 @@ m68000dasm.prototype.disassemble = function (address) {
                 } else {
                     return format('MOVEM.%s %s,%s', size?'L':'W', this.getEAFromInstruction(instruction), data);
                 }
-            } else {
-                switch (opmode) {
-                    case 0x07:
-                        // LEA: Load Effective Address (p.214)
-                        return format('LEA %s,A%d', this.getEAFromInstruction(instruction), rx);
-                    default:
-                        bit = (instruction >> 6) & 0x01;
-                        size = (instruction >> 7) & 0x03;
-                        if (bit == 0x00) {
-                            // CHK: Check Register Against Bounds; If Dn < 0 or Dn > Source Then TRAP (p.173)
-                            // Note: in this case 0x03 means Word! Long is not supported in 68000.
-                            if (size != 0x03) throw Error('CHK: Unsupported size: ' + size);
-                            return format('CHK %s,D%d', this.getEAFromInstruction(instruction, SIZE_WORD), rx);
-                        }
-                }
+            }
+            switch (opmode) {
+                case 0x07:
+                    // LEA: Load Effective Address (p.214)
+                    return format('LEA %s,A%d', this.getEAFromInstruction(instruction), rx);
+                default:
+                    bit = (instruction >> 6) & 0x01;
+                    size = (instruction >> 7) & 0x03;
+                    if (bit == 0x00) {
+                        // CHK: Check Register Against Bounds; If Dn < 0 or Dn > Source Then TRAP (p.173)
+                        // Note: in this case 0x03 means Word! Long is not supported in 68000.
+                        if (size != 0x03) throw Error('CHK: Unsupported size: ' + size);
+                        return format('CHK %s,D%d', this.getEAFromInstruction(instruction, SIZE_WORD), rx);
+                    }
             }
             break;
 
@@ -334,7 +341,7 @@ m68000dasm.prototype.disassemble = function (address) {
             if (disp == 0x00) {
                 disp = this.getImmediateData(SIZE_WORD);
             } else if (disp >= 0x80) {
-                disp = (disp | 0xFFFFFF00) | 0; // convert byte to signed int (sign extension)
+                disp|= 0xFFFFFF00; // convert byte to signed int (sign extension)
             }
             switch (cond) {
                 case 0:
@@ -351,6 +358,15 @@ m68000dasm.prototype.disassemble = function (address) {
 
         // 0111 MOVEQ
         case 0x07:
+            // MOVEQ: Move Quick; Immediate Data → Destination (p.238)
+            if (((instruction >> 8) & 0x01) == 0x0) {
+                data = instruction & 0xFF;
+                if (data >= 0x80) {
+                    data|= 0xFFFFFF00;
+                }
+                rx = (instruction >> 9) & 0x07;
+                return format('MOVEQ #%d,D%d', data, rx);
+            }
             break;
 
         // 1000 OR/DIV/SBCD
