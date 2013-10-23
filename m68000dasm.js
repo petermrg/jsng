@@ -439,6 +439,7 @@ m68000dasm.prototype.disassemble = function (address) {
         // 1100 AND/MUL/ABCD/EXG
         // ABCD: 1100 reg 100 00b reg
         // MULS: 1100 reg 111 mod reg
+        // MULU: 1100 reg 011 mod reg
         // EXG : 1100 reg 1op-mod reg - op-mod = 01000|01001|10001
         // AND : 1100 reg opm mod reg - opm = 000|001|010|110|101|110
         case 0x0C:
@@ -447,6 +448,9 @@ m68000dasm.prototype.disassemble = function (address) {
             mode = (instruction >> 3) & 0x07;
             ry = instruction & 0x07;
             switch (opmode) {
+                case 0x03:
+                    // MULU: Signed Multiply; Source x Destination → Destination (p.239)
+                    return format('MULU.W %s,D%d', this.getEAFromInstruction(instruction, SIZE_WORD), rx);
                 case 0x04:
                     switch (mode) {
                         case 0:

@@ -777,8 +777,11 @@ describe('m68000', function () {
             assert.equal(dasm.disassemble(7), 'MULS.W D6,D5');
         });
 
+        it('disassembles MULU', function() {
+            dasm.memory.setInt16(7, bin('1100 101 011 000 110'));
+            assert.equal(dasm.disassemble(7), 'MULU.W D6,D5');
+        });
 
-
-});
+    });
 
 });
