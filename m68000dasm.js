@@ -199,6 +199,7 @@ m68000dasm.prototype.disassemble = function (address) {
             // MOVEfromSR : 0100 000 011 mod reg
             // MOVEfromCCR: 0100 001 011 mod reg
             // MOVEtoCCR  : 0100 010 011 mod reg
+            // NBCD       : 0100 100 000 mod reg
             // EXT        : 0100 100 opm 000 reg - opm = 010|011
             // Illegal    : 0100 101 011 111 100
             // LINK       : 0100 111 001 010 reg
@@ -243,10 +244,13 @@ m68000dasm.prototype.disassemble = function (address) {
                     break;
 
                 case 0x04:
+                    if (opmode == 0x00) {
+                        // NBCD: Negate Decimal with Extend; 0 – Destination(Base10) – X → Destination (p.245)
+                        return format('NBCD %s', this.getEAFromInstruction(instruction));
+                    }
                     // EXT: Sign-Extend; Destination Sign-Extended → Destination (p.210)
                     mode = (instruction >> 3) & 0x07;
                     if (mode == 0x00) {
-                        opmode = (instruction >> 6) & 0x07;
                         ry = instruction & 0x07;
                         switch (opmode) {
                             case 0x02:
@@ -254,8 +258,8 @@ m68000dasm.prototype.disassemble = function (address) {
                             case 0x03:
                                 return format('EXT.L D%d', ry);
                         }
-                        break;
                     }
+                    break;
 
                 case 0x05:
                     switch (opmode) {
@@ -264,7 +268,6 @@ m68000dasm.prototype.disassemble = function (address) {
                                 // ILLEGAL: Take Illegal Instruction Trap (p.211)
                                 return format('ILLEGAL');
                             }
-                            break;
                     }
                     break;
 

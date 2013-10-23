@@ -782,6 +782,11 @@ describe('m68000', function () {
             assert.equal(dasm.disassemble(7), 'MULU.W D6,D5');
         });
 
+        it('disassembles NBCD', function() {
+            dasm.memory.setInt16(7, bin('0100100000 000 101'));
+            assert.equal(dasm.disassemble(7), 'NBCD D5');
+        });
+
     });
 
 });
