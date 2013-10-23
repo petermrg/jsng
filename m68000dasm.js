@@ -195,6 +195,7 @@ m68000dasm.prototype.disassemble = function (address) {
 
         // 0100 Miscellaneous
         case 0x04:
+            // NEGX       : 0100 000 0sz mod reg - sz = 00|01|10
             // CLR        : 0100 001 0sz mod reg - sz = 00|01|10
             // MOVEfromSR : 0100 000 011 mod reg
             // MOVEfromCCR: 0100 001 011 mod reg
@@ -214,6 +215,14 @@ m68000dasm.prototype.disassemble = function (address) {
             switch (rx) {
                 case 0x00:
                     switch (opmode) {
+                        case 0x00:
+                            // intentional fall-through
+                        case 0x01:
+                            // intentional fall-through
+                        case 0x02:
+                            // NEGX: Negate with Extend; 0 – Destination – X → Destination (p.249)
+                            size = (instruction >> 6) & 0x03;
+                            return format('NEGX%s %s', SIZES[size], this.getEAFromInstruction(instruction, size));
                         case 0x03:
                             // MOVE from SR: Move from the Status Register; SR → Destination (p.229)
                             return format('MOVE SR,%s', this.getEAFromInstruction(instruction));
@@ -243,7 +252,7 @@ m68000dasm.prototype.disassemble = function (address) {
                         case 0x01:
                             // intentional fall-through
                         case 0x02:
-                            // CLR: Clear an Operand; 0 → Destination (p.177)
+                            // NEG: Negate; 0 – Destination → Destination (p.247)
                             size = (instruction >> 6) & 0x03;
                             return format('NEG%s %s', SIZES[size], this.getEAFromInstruction(instruction, size));
                         case 0x03:
