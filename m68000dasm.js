@@ -437,10 +437,10 @@ m68000dasm.prototype.disassemble = function (address) {
             break;
 
         // 1100 AND/MUL/ABCD/EXG
-        // AND : 1100 reg opm mod reg - opm = 000|001|010|110|101|110
         // ABCD: 1100 reg 100 00b reg
         // MULS: 1100 reg 111 mod reg
         // EXG : 1100 reg 1op-mod reg - op-mod = 01000|01001|10001
+        // AND : 1100 reg opm mod reg - opm = 000|001|010|110|101|110
         case 0x0C:
             rx = (instruction >> 9) & 0x07;
             opmode = (instruction >> 6) & 0x07;
@@ -473,7 +473,8 @@ m68000dasm.prototype.disassemble = function (address) {
                     }
                     break;
                 case 0x07:
-                    // MULS
+                    // MULS: Signed Multiply; Source x Destination → Destination (p.239)
+                    return format('MULS.W %s,D%d', this.getEAFromInstruction(instruction, SIZE_WORD), rx);
             }
             // AND: AND Logical; Source Λ Destination → Destination (p.119)
             size = opmode & 0x03;
@@ -481,52 +482,6 @@ m68000dasm.prototype.disassemble = function (address) {
                 return format('AND%s %s,D%d', SIZES[size], this.getEAFromInstruction(instruction, size), rx);
             } else {
                 return format('AND%s D%d,%s', SIZES[size], rx, this.getEAFromInstruction(instruction, size));
-            }
-
-
-            break;
-            opmode = (instruction >> 3) & 0x1F;
-            rx = (instruction >> 9) & 0x07;
-            ry = instruction & 0x07;
-            bit = (instruction >> 8) & 0x01;
-            switch (opmode) {
-                case 0x08:
-                    // EXG: Exchange Registers; Rx ←→ Ry (p.209)
-                    if (bit == 0x01) {
-                        return format('EXG D%d,D%d', rx, ry);
-                    }
-                    // intentional fall-through
-                case 0x09:
-                    // EXG: Exchange Registers; Rx ←→ Ry (p.209)
-                    if (bit == 0x01) {
-                        return format('EXG A%d,A%d', rx, ry);
-                    }
-                    // intentional fall-through
-                case 0x11:
-                    // EXG: Exchange Registers; Rx ←→ Ry (p.209)
-                    if (bit == 0x01) {
-                        return format('EXG D%d,A%d', rx, ry);
-                    }
-                    // intentional fall-through
-                default:
-                    if (((instruction >> 4) & 0x1F) == 0x10) {
-                        // ABCD: Add Decimal with Extend; Source10 + Destination10 + X → Destination (p.106)
-                        bit = (instruction >> 3) & 0x01;
-                        if (bit == 0) {
-                            return format('ABCD D%d,D%d', ry, rx);
-                        } else {
-                            return format('ABCD -(A%d),-(A%d)', ry, rx);
-                        }
-                    } else {
-                        // AND: AND Logical; Source Λ Destination → Destination (p.119)
-                        opmode = (instruction >> 6) & 0x07;
-                        size = opmode & 0x03;
-                        if (opmode < 4) {
-                            return format('AND%s %s,D%d', SIZES[size], this.getEAFromInstruction(instruction, size), rx);
-                        } else {
-                            return format('AND%s D%d,%s', SIZES[size], rx, this.getEAFromInstruction(instruction, size));
-                        }
-                    }
             }
             break;
 
