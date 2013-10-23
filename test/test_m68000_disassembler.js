@@ -773,6 +773,8 @@ describe('m68000', function () {
         });
 
         it('disassembles MULS', function() {
+            dasm.memory.setInt16(7, bin('1100 101 111 000 110'));
+            assert.equal(dasm.disassemble(7), 'MULS.W D6,D5');
         });
 
 

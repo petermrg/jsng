@@ -437,11 +437,54 @@ m68000dasm.prototype.disassemble = function (address) {
             break;
 
         // 1100 AND/MUL/ABCD/EXG
-        // AND : 1100 reg opm mod reg
+        // AND : 1100 reg opm mod reg - opm = 000|001|010|110|101|110
         // ABCD: 1100 reg 100 00b reg
-        // EXG : 1100 reg 1opmode reg - opmode = 01000|01001|10001
-        // @todo refactor this
+        // MULS: 1100 reg 111 mod reg
+        // EXG : 1100 reg 1op-mod reg - op-mod = 01000|01001|10001
         case 0x0C:
+            rx = (instruction >> 9) & 0x07;
+            opmode = (instruction >> 6) & 0x07;
+            mode = (instruction >> 3) & 0x07;
+            ry = instruction & 0x07;
+            switch (opmode) {
+                case 0x04:
+                    switch (mode) {
+                        case 0:
+                            return format('ABCD D%d,D%d', ry, rx);
+                        case 1:
+                            return format('ABCD -(A%d),-(A%d)', ry, rx);
+                    }
+                    break;
+                case 0x05:
+                    switch (mode) {
+                        case 0:
+                            // EXG: Exchange Registers; Rx ←→ Ry (p.209)
+                            return format('EXG D%d,D%d', rx, ry);
+                        case 1:
+                            // EXG: Exchange Registers; Rx ←→ Ry (p.209)
+                            return format('EXG A%d,A%d', rx, ry);
+                    }
+                    break;
+                case 0x06:
+                    switch (mode) {
+                        case 1:
+                            // EXG: Exchange Registers; Rx ←→ Ry (p.209)
+                            return format('EXG D%d,A%d', rx, ry);
+                    }
+                    break;
+                case 0x07:
+                    // MULS
+            }
+            // AND: AND Logical; Source Λ Destination → Destination (p.119)
+            size = opmode & 0x03;
+            if (opmode < 0x04) {
+                return format('AND%s %s,D%d', SIZES[size], this.getEAFromInstruction(instruction, size), rx);
+            } else {
+                return format('AND%s D%d,%s', SIZES[size], rx, this.getEAFromInstruction(instruction, size));
+            }
+
+
+            break;
             opmode = (instruction >> 3) & 0x1F;
             rx = (instruction >> 9) & 0x07;
             ry = instruction & 0x07;
