@@ -198,6 +198,7 @@ m68000dasm.prototype.disassemble = function (address) {
             // CLR        : 0100 001 0sz mod reg - sz = 00|01|10
             // MOVEfromSR : 0100 000 011 mod reg
             // MOVEfromCCR: 0100 001 011 mod reg
+            // NEG        : 0100 010 0sz mod reg - sz = 00|01|10
             // MOVEtoCCR  : 0100 010 011 mod reg
             // NBCD       : 0100 100 000 mod reg
             // EXT        : 0100 100 opm 000 reg - opm = 010|011
@@ -237,6 +238,14 @@ m68000dasm.prototype.disassemble = function (address) {
 
                 case 0x02:
                     switch (opmode) {
+                        case 0x00:
+                            // intentional fall-through
+                        case 0x01:
+                            // intentional fall-through
+                        case 0x02:
+                            // CLR: Clear an Operand; 0 → Destination (p.177)
+                            size = (instruction >> 6) & 0x03;
+                            return format('NEG%s %s', SIZES[size], this.getEAFromInstruction(instruction, size));
                         case 0x03:
                             // MOVE to CCR: Move to Condition Code Register; Source → CCR (p.227)
                             return format('MOVE %s,CCR', this.getEAFromInstruction(instruction));

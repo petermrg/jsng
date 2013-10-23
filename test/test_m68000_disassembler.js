@@ -787,6 +787,17 @@ describe('m68000', function () {
             assert.equal(dasm.disassemble(7), 'NBCD D5');
         });
 
+        it('disassembles NEG', function() {
+            dasm.memory.setInt16(5, bin('0100 0100 00 000 111'));
+            assert.equal(dasm.disassemble(5), 'NEG D7');
+
+            dasm.memory.setInt16(5, bin('0100 0100 01 000 110'));
+            assert.equal(dasm.disassemble(5), 'NEG.W D6');
+
+            dasm.memory.setInt16(5, bin('0100 0100 10 000 101'));
+            assert.equal(dasm.disassemble(5), 'NEG.L D5');
+        });
+
     });
 
 });
