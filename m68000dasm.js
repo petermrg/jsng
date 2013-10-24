@@ -30,7 +30,12 @@ m68000dasm.prototype.disassemble = function (address) {
     this.pointer+= 2;
 
     var opcode = (instruction >> 12) & 0x0F,
-        rx, ry, dr, opmode, size, data, bit, cond, disp;
+        rx = (instruction >> 9) & 0x07,
+        opmode = (instruction >> 6) & 0x07,
+        mode = (instruction >> 3) & 0x07,
+        ry = instruction & 0x07;
+
+    var dr, size, data, bit, cc, disp;
 
     switch (opcode) {
 
@@ -53,14 +58,10 @@ m68000dasm.prototype.disassemble = function (address) {
             // BCLR reg : 0000 reg 110 mod reg
             // BSET reg : 0000 reg 111 mod reg
             // MOVEP    : 0000 reg 1om 001 reg - om = 00|01|10|11
-            rx = (instruction >> 9) & 0x07;
-            opmode = (instruction >> 6) & 0x07;
-            mode = (instruction >> 3) & 0x07;
             switch (rx) {
                 case 0x00:
                     switch (opmode) {
                         case 0x00:
-                            ry = instruction & 0x07;
                             if (mode == 0x07 && ry == 0x04) {
                                 // ORI to CCR: Inclusive-OR Immediate to Condition Codes; Source V CCR → CCR (p.259)
                                 data = this.getImmediateData(SIZE_BYTE);
@@ -147,7 +148,6 @@ m68000dasm.prototype.disassemble = function (address) {
             // rest of cases
             if (((instruction >> 8) & 1) == 0x01 && mode == 0x01) {
                 // MOVEP: Move Peripheral Data; Source → Destination (p.235)
-                ry = instruction & 0x07;
                 data = this.getImmediateData(SIZE_WORD);
                 if (opmode & 0x02) {
                     return format('MOVEP.%s D%d,(%d,A%d)', (opmode & 0x01)?'L':'W', rx, data, ry);
@@ -174,8 +174,6 @@ m68000dasm.prototype.disassemble = function (address) {
 
         // 0001 Move Byte
         case 0x01:
-            rx = (instruction >> 9) & 0x07;
-            mode = (instruction >> 6) & 0x07;
             data = this.getEAFromModeAndReg(mode, rx);
             // MOVE: Move Data from Source to Destination; Source → Destination (p.220)
             return format('MOVE %s,%s', this.getEAFromInstruction(instruction, SIZE_BYTE), data);
@@ -183,10 +181,8 @@ m68000dasm.prototype.disassemble = function (address) {
 
         // 0010 Move Long
         case 0x02:
-            rx = (instruction >> 9) & 0x07;
-            mode = (instruction >> 6) & 0x07;
-            data = this.getEAFromModeAndReg(mode, rx);
-            switch (mode) {
+            data = this.getEAFromModeAndReg(opmode, rx);
+            switch (opmode) {
                 case 0x01:
                     // MOVEA: Move Address; Source → Destination (p.223)
                     return format('MOVE.L %s,A%d', this.getEAFromInstruction(instruction, SIZE_LONG), rx);
@@ -199,10 +195,8 @@ m68000dasm.prototype.disassemble = function (address) {
 
         // 0011 Move Word
         case 0x03:
-            rx = (instruction >> 9) & 0x07;
-            mode = (instruction >> 6) & 0x07;
-            data = this.getEAFromModeAndReg(mode, rx);
-            switch (mode) {
+            data = this.getEAFromModeAndReg(opmode, rx);
+            switch (opmode) {
                 case 0x01:
                     // MOVEA: Move Address; Source → Destination (p.223)
                     return format('MOVE.W %s,A%d', this.getEAFromInstruction(instruction, SIZE_LONG), rx);
@@ -232,9 +226,6 @@ m68000dasm.prototype.disassemble = function (address) {
             // LEA        : 0100 reg 111 mod reg
             // CHK        : 0100 reg sz0 mod reg - sz = 11|10
             // MOVEM      : 0100 1d0 01s mod reg
-            rx = (instruction >> 9) & 0x07;
-            opmode = (instruction >> 6) & 0x07;
-            mode = (instruction >> 3) & 0x07;
             switch (rx) {
                 case 0x00:
                     switch (opmode) {
@@ -244,7 +235,7 @@ m68000dasm.prototype.disassemble = function (address) {
                             // intentional fall-through
                         case 0x02:
                             // NEGX: Negate with Extend; 0 – Destination – X → Destination (p.249)
-                            size = (instruction >> 6) & 0x03;
+                            size = opmode;
                             return format('NEGX%s %s', SIZES[size], this.getEAFromInstruction(instruction, size));
                         case 0x03:
                             // MOVE from SR: Move from the Status Register; SR → Destination (p.229)
@@ -260,7 +251,7 @@ m68000dasm.prototype.disassemble = function (address) {
                             // intentional fall-through
                         case 0x02:
                             // CLR: Clear an Operand; 0 → Destination (p.177)
-                            size = (instruction >> 6) & 0x03;
+                            size = opmode;
                             return format('CLR%s %s', SIZES[size], this.getEAFromInstruction(instruction, size));
                         case 0x03:
                             // MOVE from CCR: Move from the Condition Code Register; CCR → Destination (p.225)
@@ -276,7 +267,7 @@ m68000dasm.prototype.disassemble = function (address) {
                             // intentional fall-through
                         case 0x02:
                             // NEG: Negate; 0 – Destination → Destination (p.247)
-                            size = (instruction >> 6) & 0x03;
+                            size = opmode;
                             return format('NEG%s %s', SIZES[size], this.getEAFromInstruction(instruction, size));
                         case 0x03:
                             // MOVE to CCR: Move to Condition Code Register; Source → CCR (p.227)
@@ -292,7 +283,7 @@ m68000dasm.prototype.disassemble = function (address) {
                             // intentional fall-through
                         case 0x02:
                             // NEG: Negate; 0 – Destination → Destination (p.247)
-                            size = (instruction >> 6) & 0x03;
+                            size = opmode;
                             return format('NOT%s %s', SIZES[size], this.getEAFromInstruction(instruction, size));
                     }
 
@@ -303,7 +294,6 @@ m68000dasm.prototype.disassemble = function (address) {
                     }
                     // EXT: Sign-Extend; Destination Sign-Extended → Destination (p.210)
                     if (mode == 0x00) {
-                        ry = instruction & 0x07;
                         switch (opmode) {
                             case 0x02:
                                 return format('EXT.W D%d', ry);
@@ -326,7 +316,6 @@ m68000dasm.prototype.disassemble = function (address) {
                 case 0x07:
                     switch (opmode) {
                         case 0x01:
-                            ry = instruction & 0x07;
                             switch (mode) {
                                 case 0x02:
                                     // LINK: Link and Allocate; SP – 4 → SP; An → (SP); SP → An; SP + dn → SP (p.215)
@@ -376,15 +365,14 @@ m68000dasm.prototype.disassemble = function (address) {
         // 0101 ADDQ/SUBQ/Scc/DBcc/TRAPc c
         case 0x05:
             // ADDQ: 0101 dat 0sz mod reg - dat = 000..111; sz = 00..10
-            // DBcc: 0101 cond 11 001 reg - cond = 0000..1111
+            // DBcc: 0101 cc- -11 001 reg - cc = 0000..1111
             size = (instruction >> 6) & 0x03;
             if (size == 0x03) {
                 // DBcc: Test Condition, Decrement, and Branch;
                 // If Condition False Then (Dn – 1 → Dn; If Dn != – 1 Then PC + dn → PC) (p.194)
-                cond = (instruction >> 8) & 0x0F;
-                ry = instruction & 0x07;
+                cc = (instruction >> 8) & 0x0F;
                 disp = this.getImmediateData(SIZE_WORD);
-                return (format('DB%s D%d,*%s%d', CONDITIONS[cond], ry, (disp >= 0)?'+':'', disp));
+                return (format('DB%s D%d,*%s%d', CONDITIONS[cc], ry, (disp >= 0)?'+':'', disp));
             } else {
                 // ADDQ: Add Quick; Immediate Data + Destination → Destination (p.115)
                 data = (instruction >> 9) & 0x07;
@@ -394,14 +382,14 @@ m68000dasm.prototype.disassemble = function (address) {
 
         // 0110 Bcc/BSR/BRA
         case 0x06:
-            cond = (instruction >> 8) & 0x0F;
+            cc = (instruction >> 8) & 0x0F;
             disp = instruction & 0xFF;
             if (disp == 0x00) {
                 disp = this.getImmediateData(SIZE_WORD);
             } else if (disp >= 0x80) {
                 disp|= 0xFFFFFF00; // convert byte to signed int (sign extension)
             }
-            switch (cond) {
+            switch (cc) {
                 case 0:
                     // BRA: Branch Always: PC + dn → PC (p.159)
                     return format('BRA *%s%d', (disp >= 0)?'+':'', disp);
@@ -410,7 +398,7 @@ m68000dasm.prototype.disassemble = function (address) {
                     return format('BSR *%s%d', (disp >= 0)?'+':'', disp);
                 default:
                     // Bcc: Branch Conditionally; If Condition True Then PC + dn → PC (p.129)
-                    return format('B%s *%s%d', CONDITIONS[cond], (disp >= 0)?'+':'', disp);
+                    return format('B%s *%s%d', CONDITIONS[cc], (disp >= 0)?'+':'', disp);
             }
             break;
 
@@ -470,17 +458,17 @@ m68000dasm.prototype.disassemble = function (address) {
             opmode = (instruction >> 6) & 0x07;
             switch (opmode) {
                 case 0x00:
-                    // CMP: Compare; Destination – Source → cc (p.179)
-                    return format('CMP%s %s,D%d', SIZES[SIZE_BYTE], this.getEAFromInstruction(instruction, SIZE_BYTE), rx);
+                    // intentional fall-through
                 case 0x01:
-                    // CMP: Compare; Destination – Source → cc (p.179)
-                    return format('CMP%s %s,D%d', SIZES[SIZE_WORD], this.getEAFromInstruction(instruction, SIZE_WORD), rx);
+                    // intentional fall-through
                 case 0x02:
                     // CMP: Compare; Destination – Source → cc (p.179)
-                    return format('CMP%s %s,D%d', SIZES[SIZE_LONG], this.getEAFromInstruction(instruction, SIZE_LONG), rx);
+                    size = opmode;
+                    return format('CMP%s %s,D%d', SIZES[size], this.getEAFromInstruction(instruction, size), rx);
                 case 0x03:
                     // CMPA: Compare; Destination – Source → cc (p.181)
-                    return format('CMPA%s %s,D%d', SIZES[SIZE_WORD], this.getEAFromInstruction(instruction, SIZE_WORD), rx);
+                    size = SIZE_WORD;
+                    return format('CMPA%s %s,D%d', SIZES[size], this.getEAFromInstruction(instruction, size), rx);
                 case 0x04:
                     // intentional fall-through
                 case 0x05:
@@ -498,7 +486,8 @@ m68000dasm.prototype.disassemble = function (address) {
                     }
                 case 0x07:
                     // CMPA: Compare; Destination – Source → cc (p.181)
-                    return format('CMPA%s %s,D%d', SIZES[SIZE_LONG], this.getEAFromInstruction(instruction, SIZE_LONG), rx);
+                    size = SIZE_LONG;
+                    return format('CMPA%s %s,D%d', SIZES[size], this.getEAFromInstruction(instruction, size), rx);
             }
             break;
 
@@ -509,10 +498,6 @@ m68000dasm.prototype.disassemble = function (address) {
         // EXG : 1100 reg 1op-mod reg - op-mod = 01000|01001|10001
         // AND : 1100 reg opm mod reg - opm = 000|001|010|110|101|110
         case 0x0C:
-            rx = (instruction >> 9) & 0x07;
-            opmode = (instruction >> 6) & 0x07;
-            mode = (instruction >> 3) & 0x07;
-            ry = instruction & 0x07;
             switch (opmode) {
                 case 0x03:
                     // MULU: Signed Multiply; Source x Destination → Destination (p.239)
@@ -591,11 +576,8 @@ m68000dasm.prototype.disassemble = function (address) {
             // LSL/R Reg: 1110 reg dsz i01 reg - sz = 00|01|10
             // ASL/R Mem: 1110 000 d11 mod reg
             // LSL/R Mem: 1110 001 d11 mod reg
-            rx = (instruction >> 9) & 0x07;
-            ry = instruction & 0x07;
-            size = (instruction >> 6) & 0x03;
+            size = opmode & 0x03;
             dr = (instruction >> 8) & 0x01;
-            mode = (instruction >> 3) & 0x3;
             bit = (instruction >> 5) & 0x1;
             if (size == 0x03) {
                 switch (rx) {
@@ -609,7 +591,7 @@ m68000dasm.prototype.disassemble = function (address) {
                 }
                 break;
             } else {
-                switch (mode) {
+                switch (mode & 0x03) {
                     case 0x00:
                         // ASL, ASR: Arithmetic Shift (register shifts);
                         // Destination Shifted By Count → Destination (p.125)
