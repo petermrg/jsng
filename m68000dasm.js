@@ -37,6 +37,7 @@ m68000dasm.prototype.disassemble = function (address) {
         // 0000 Bit Manipulation/MOVEP/Immediate
         case 0x00:
             // ORI      : 0000 000 0sz mod reg - sz = 00|01|10
+            // ORItoCCR : 0000 000 000 111 100
             // ANDItoCCR: 0000 001 000 111 100
             // ANDI     : 0000 001 0sz mod reg - sz = 00|01|10
             // ADDI     : 0000 011 0sz mod reg - sz = 00|01|10
@@ -57,11 +58,22 @@ m68000dasm.prototype.disassemble = function (address) {
             mode = (instruction >> 3) & 0x07;
             switch (rx) {
                 case 0x00:
-                    if (opmode <= 0x02) {
-                        size = opmode;
-                        // ORI: Inclusive-OR; Immediate Data V Destination → Destination (p.257)
-                        data = this.getImmediateData(size);
-                        return format('ORI%s #%d,%s', SIZES[size], data, this.getEAFromInstruction(instruction, size));
+                    switch (opmode) {
+                        case 0x00:
+                            ry = instruction & 0x07;
+                            if (mode == 0x07 && ry == 0x04) {
+                                // ORI to CCR: Inclusive-OR Immediate to Condition Codes; Source V CCR → CCR (p.259)
+                                data = this.getImmediateData(SIZE_BYTE);
+                                return format('ORI #%d,CCR', data);
+                            }
+                            // intentional fall-through
+                        case 0x01:
+                            // intentional fall-through
+                        case 0x02:
+                            // ORI: Inclusive-OR; Immediate Data V Destination → Destination (p.257)
+                            size = opmode;
+                            data = this.getImmediateData(size);
+                            return format('ORI%s #%d,%s', SIZES[size], data, this.getEAFromInstruction(instruction, size));
                     }
                     break;
 
@@ -69,7 +81,6 @@ m68000dasm.prototype.disassemble = function (address) {
                     if (instruction == 0x023C) {
                         // ANDI to CCR: CCR AND Immediate; Source Λ CCR → CCR (p.124)
                         data = this.getImmediateData(SIZE_WORD);
-                        if (data > 0xFF) throw Error(format('ANDI to CCR High Byte (%d) must be 0', data));
                         return format('ANDI #%d,CCR', data);
                     }
                     if (opmode <= 0x02) {
@@ -114,7 +125,6 @@ m68000dasm.prototype.disassemble = function (address) {
                     if (instruction == 0x0A3C) {
                         // EORI to CCR: Exclusive-OR Immediate to CCR; Source ⊕ CCR → CCR → Destination (p.208)
                         data = this.getImmediateData(SIZE_WORD);
-                        if (data > 0xFF) throw Error(format('EORI to CCR High Byte (%d) must be 0', data));
                         return format('EORI #%d,CCR', data);
                     }
                     if (opmode <= 0x02) {
@@ -725,6 +735,7 @@ m68000dasm.prototype.getImmediateData = function(size) {
     var d;
     switch (size) {
         case SIZE_BYTE:
+            if (d > 0xFF) throw Error('High Byte of immediate data must be 0');
             d = this.memory.getInt16(this.pointer) & 0xFF;
             this.pointer+= 2;
             return d;

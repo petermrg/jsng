@@ -857,6 +857,11 @@ describe('m68000', function () {
             assert.equal(dasm.disassemble(3), 'ORI.L #-1,D5');
         });
 
+        it('disassembles ORI to CCR', function() {
+            dasm.memory.setInt32(3, bin('0000 000 000 111 100  00000000 01111111'));
+            assert.equal(dasm.disassemble(3), 'ORI #127,CCR');
+        });
+
     });
 
 });
