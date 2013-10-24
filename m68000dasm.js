@@ -36,6 +36,7 @@ m68000dasm.prototype.disassemble = function (address) {
 
         // 0000 Bit Manipulation/MOVEP/Immediate
         case 0x00:
+            // ORI      : 0000 000 0sz mod reg - sz = 00|01|10
             // ANDItoCCR: 0000 001 000 111 100
             // ANDI     : 0000 001 0sz mod reg - sz = 00|01|10
             // ADDI     : 0000 011 0sz mod reg - sz = 00|01|10
@@ -55,6 +56,15 @@ m68000dasm.prototype.disassemble = function (address) {
             opmode = (instruction >> 6) & 0x07;
             mode = (instruction >> 3) & 0x07;
             switch (rx) {
+                case 0x00:
+                    if (opmode <= 0x02) {
+                        size = opmode;
+                        // ORI: Inclusive-OR; Immediate Data V Destination → Destination (p.257)
+                        data = this.getImmediateData(size);
+                        return format('ORI%s #%d,%s', SIZES[size], data, this.getEAFromInstruction(instruction, size));
+                    }
+                    break;
+
                 case 0x01:
                     if (instruction == 0x023C) {
                         // ANDI to CCR: CCR AND Immediate; Source Λ CCR → CCR (p.124)
