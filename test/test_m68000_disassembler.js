@@ -825,6 +825,26 @@ describe('m68000', function () {
             assert.equal(dasm.disassemble(5), 'NOT.L D5');
         });
 
+        it('disassembles OR', function() {
+            dasm.memory.setInt16(3, bin('1000 101 000 000 110'));
+            assert.equal(dasm.disassemble(3), 'OR D6,D5');
+
+            dasm.memory.setInt16(3, bin('1000 101 001 000 110'));
+            assert.equal(dasm.disassemble(3), 'OR.W D6,D5');
+
+            dasm.memory.setInt16(3, bin('1000 101 010 000 110'));
+            assert.equal(dasm.disassemble(3), 'OR.L D6,D5');
+
+            dasm.memory.setInt16(3, bin('1000 101 100 010 110'));
+            assert.equal(dasm.disassemble(3), 'OR D5,(A6)');
+
+            dasm.memory.setInt16(3, bin('1000 101 101 010 110'));
+            assert.equal(dasm.disassemble(3), 'OR.W D5,(A6)');
+
+            dasm.memory.setInt16(3, bin('1000 101 110 010 110'));
+            assert.equal(dasm.disassemble(3), 'OR.L D5,(A6)');
+        });
+
     });
 
 });

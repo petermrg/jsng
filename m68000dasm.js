@@ -421,6 +421,14 @@ m68000dasm.prototype.disassemble = function (address) {
                     // DIVS: Signed Divide; Destination ÷ Source → Destination (p.196)
                     // DIVS.W <ea> ,Dn32/16 → 16r – 16q
                     return format('DIVS.W %s,D%d', this.getEAFromInstruction(instruction, SIZE_LONG), rx);
+                default:
+                    // OR: Inclusive-OR Logical; Source V Destination → Destination (p.254)
+                    size = opmode & 0x03;
+                    if (opmode < 0x04) {
+                        return format('OR%s %s,D%d', SIZES[size], this.getEAFromInstruction(instruction, size), rx);
+                    } else {
+                        return format('OR%s D%d,%s', SIZES[size], rx, this.getEAFromInstruction(instruction, size));
+                    }
             }
             break;
 
