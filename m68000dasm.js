@@ -201,10 +201,12 @@ m68000dasm.prototype.disassemble = function (address) {
             // MOVEfromCCR: 0100 001 011 mod reg
             // NEG        : 0100 010 0sz mod reg - sz = 00|01|10
             // MOVEtoCCR  : 0100 010 011 mod reg
+            // NOT        : 0100 011 0sz mod reg - sz = 00|01|10
             // NBCD       : 0100 100 000 mod reg
             // EXT        : 0100 100 opm 000 reg - opm = 010|011
             // Illegal    : 0100 101 011 111 100
             // LINK       : 0100 111 001 010 reg
+            // NOP        : 0100 111 001 110 001
             // JSR        : 0100 111 010 mod reg
             // JMP        : 0100 111 011 mod reg
             // LEA        : 0100 reg 111 mod reg
@@ -212,6 +214,7 @@ m68000dasm.prototype.disassemble = function (address) {
             // MOVEM      : 0100 1d0 01s mod reg
             rx = (instruction >> 9) & 0x07;
             opmode = (instruction >> 6) & 0x07;
+            mode = (instruction >> 3) & 0x07;
             switch (rx) {
                 case 0x00:
                     switch (opmode) {
@@ -261,13 +264,24 @@ m68000dasm.prototype.disassemble = function (address) {
                     }
                     break;
 
+                case 0x03:
+                    switch (opmode) {
+                        case 0x00:
+                            // intentional fall-through
+                        case 0x01:
+                            // intentional fall-through
+                        case 0x02:
+                            // NEG: Negate; 0 – Destination → Destination (p.247)
+                            size = (instruction >> 6) & 0x03;
+                            return format('NOT%s %s', SIZES[size], this.getEAFromInstruction(instruction, size));
+                    }
+
                 case 0x04:
                     if (opmode == 0x00) {
                         // NBCD: Negate Decimal with Extend; 0 – Destination(Base10) – X → Destination (p.245)
                         return format('NBCD %s', this.getEAFromInstruction(instruction));
                     }
                     // EXT: Sign-Extend; Destination Sign-Extended → Destination (p.210)
-                    mode = (instruction >> 3) & 0x07;
                     if (mode == 0x00) {
                         ry = instruction & 0x07;
                         switch (opmode) {
@@ -292,11 +306,14 @@ m68000dasm.prototype.disassemble = function (address) {
                 case 0x07:
                     switch (opmode) {
                         case 0x01:
-                            mode = (instruction >> 3) & 0x07;
-                            if (mode == 0x02) {
-                                // LINK: Link and Allocate; SP – 4 → SP; An → (SP); SP → An; SP + dn → SP (p.215)
-                                ry = instruction & 0x07;
-                                return format('LINK A%d,#%d', ry, this.getImmediateData(SIZE_WORD));
+                            ry = instruction & 0x07;
+                            switch (mode) {
+                                case 0x02:
+                                    // LINK: Link and Allocate; SP – 4 → SP; An → (SP); SP → An; SP + dn → SP (p.215)
+                                    return format('LINK A%d,#%d', ry, this.getImmediateData(SIZE_WORD));
+                                case 0x06:
+                                    // NOP: No Operation; (p.251)
+                                    if (ry == 0x01) return format('NOP');
                             }
                             break;
                         case 0x02:

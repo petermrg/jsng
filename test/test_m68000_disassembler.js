@@ -809,6 +809,22 @@ describe('m68000', function () {
             assert.equal(dasm.disassemble(5), 'NEGX.L D5');
         });
 
+        it('disassembles NOP', function() {
+            dasm.memory.setInt16(5, bin('0100 111 001 110 001'));
+            assert.equal(dasm.disassemble(5), 'NOP');
+        });
+
+        it('disassembles NOT', function() {
+            dasm.memory.setInt16(5, bin('0100 0110 00 000 111'));
+            assert.equal(dasm.disassemble(5), 'NOT D7');
+
+            dasm.memory.setInt16(5, bin('0100 0110 01 000 110'));
+            assert.equal(dasm.disassemble(5), 'NOT.W D6');
+
+            dasm.memory.setInt16(5, bin('0100 0110 10 000 101'));
+            assert.equal(dasm.disassemble(5), 'NOT.L D5');
+        });
+
     });
 
 });
