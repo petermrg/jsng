@@ -867,6 +867,73 @@ describe('m68000', function () {
             assert.equal(dasm.disassemble(3), 'PEA (A5)');
         });
 
+        it('disassembles ROL', function () {
+            dasm.memory.setInt16(9, bin('1110 001 1 00 1 11 010'));
+            assert.equal(dasm.disassemble(9), 'ROL D1,D2');
+
+            dasm.memory.setInt16(9, bin('1110 101 1 01 0 11 110'));
+            assert.equal(dasm.disassemble(9), 'ROL.W #5,D6');
+
+            dasm.memory.setInt16(9, bin('1110 101 1 10 0 11 110'));
+            assert.equal(dasm.disassemble(9), 'ROL.L #5,D6');
+
+            dasm.memory.setInt16(9, bin('1110 011 1 11 010 110'));
+            assert.equal(dasm.disassemble(9), 'ROL (A6)');
+
+            dasm.memory.setInt16(9, bin('1110 011 1 11 100 110'));
+            assert.equal(dasm.disassemble(9), 'ROL -(A6)');
+        });
+
+        it('disassembles ROR', function () {
+            dasm.memory.setInt16(0, bin('1110 001 0 00 1 11 010'));
+            assert.equal(dasm.disassemble(0), 'ROR D1,D2');
+
+            dasm.memory.setInt16(0, bin('1110 101 0 01 0 11 110'));
+            assert.equal(dasm.disassemble(0), 'ROR.W #5,D6');
+
+            dasm.memory.setInt16(0, bin('1110 101 0 10 0 11 110'));
+            assert.equal(dasm.disassemble(0), 'ROR.L #5,D6');
+
+            dasm.memory.setInt16(0, bin('1110 011 0 11 010 110'));
+            assert.equal(dasm.disassemble(0), 'ROR (A6)');
+
+            dasm.memory.setInt16(0, bin('1110 011 0 11 100 110'));
+            assert.equal(dasm.disassemble(0), 'ROR -(A6)');
+        });
+        it('disassembles ROXL', function () {
+            dasm.memory.setInt16(9, bin('1110 001 1 00 1 10 010'));
+            assert.equal(dasm.disassemble(9), 'ROXL D1,D2');
+
+            dasm.memory.setInt16(9, bin('1110 101 1 01 0 10 110'));
+            assert.equal(dasm.disassemble(9), 'ROXL.W #5,D6');
+
+            dasm.memory.setInt16(9, bin('1110 101 1 10 0 10 110'));
+            assert.equal(dasm.disassemble(9), 'ROXL.L #5,D6');
+
+            dasm.memory.setInt16(9, bin('1110 010 1 11 010 110'));
+            assert.equal(dasm.disassemble(9), 'ROXL (A6)');
+
+            dasm.memory.setInt16(9, bin('1110 010 1 11 100 110'));
+            assert.equal(dasm.disassemble(9), 'ROXL -(A6)');
+        });
+
+        it('disassembles ROXR', function () {
+            dasm.memory.setInt16(0, bin('1110 001 0 00 1 10 010'));
+            assert.equal(dasm.disassemble(0), 'ROXR D1,D2');
+
+            dasm.memory.setInt16(0, bin('1110 101 0 01 0 10 110'));
+            assert.equal(dasm.disassemble(0), 'ROXR.W #5,D6');
+
+            dasm.memory.setInt16(0, bin('1110 101 0 10 0 10 110'));
+            assert.equal(dasm.disassemble(0), 'ROXR.L #5,D6');
+
+            dasm.memory.setInt16(0, bin('1110 010 0 11 010 110'));
+            assert.equal(dasm.disassemble(0), 'ROXR (A6)');
+
+            dasm.memory.setInt16(0, bin('1110 010 0 11 100 110'));
+            assert.equal(dasm.disassemble(0), 'ROXR -(A6)');
+        });
+
     });
 
 });

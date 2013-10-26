@@ -577,43 +577,62 @@ m68000dasm.prototype.disassemble = function (address) {
 
         // 1110 Shift/Rotate/Bit Field
         case 0x0E:
-            // ASL/R Reg: 1110 reg dsz i00 reg - sz = 00|01|10
-            // LSL/R Reg: 1110 reg dsz i01 reg - sz = 00|01|10
-            // ASL/R Mem: 1110 000 d11 mod reg
-            // LSL/R Mem: 1110 001 d11 mod reg
+            // ASL/R Reg : 1110 reg dsz i00 reg - sz = 00|01|10
+            // LSL/R Reg : 1110 reg dsz i01 reg - sz = 00|01|10
+            // ROXL/R Reg: 1110 reg dsz i10 reg - sz = 00|01|10
+            // ROL/R Reg : 1110 reg dsz i11 reg - sz = 00|01|10
+            // ASL/R Mem : 1110 000 d11 mod reg
+            // LSL/R Mem : 1110 001 d11 mod reg
+            // ROXL/R Mem: 1110 010 d11 mod reg
+            // ROL/R Mem : 1110 011 d11 mod reg
             size = opmode & 0x03;
             dr = (instruction >> 8) & 0x01;
             bit = (instruction >> 5) & 0x1;
             if (size == 0x03) {
                 switch (rx) {
                     case 0x00:
-                        // ASL, ASR: Arithmetic Shift (memory shifts) (p.127)
+                        // ASL, ASR: Arithmetic Shift (memory shifts);
+                        // Destination Shifted By Count → Destination (p.125)
                         return format('AS%s %s', dr?'L':'R', this.getEAFromInstruction(instruction));
                     case 0x01:
                         // LSL, LSR: Logical Shift (memory shifts)
                         // Destination Shifted By Count → Destination (p.217)
                         return format('LS%s %s', dr?'L':'R', this.getEAFromInstruction(instruction));
+                    case 0x02:
+                        // ROXL, ROXR; Rotate with Extend (memory shifts)
+                        // Destination Rotated By < count > → Destination (p.268)
+                        return format('ROX%s %s', dr?'L':'R', this.getEAFromInstruction(instruction));
+                    case 0x03:
+                        // ROL, ROR; Rotate (Without Extend) (memory shifts)
+                        // Destination Rotated By < count > → Destination (p.264)
+                        return format('RO%s %s', dr?'L':'R', this.getEAFromInstruction(instruction));
                 }
-                break;
             } else {
                 switch (mode & 0x03) {
                     case 0x00:
                         // ASL, ASR: Arithmetic Shift (register shifts);
                         // Destination Shifted By Count → Destination (p.125)
-                        if (bit == 0x00) {
-                            return format('AS%s%s #%d,D%d', dr?'L':'R', SIZES[size], rx, ry);
-                        } else {
-                            return format('AS%s%s D%d,D%d', dr?'L':'R', SIZES[size], rx, ry);
-                        }
+                        return (bit == 0x00)
+                            ? format('AS%s%s #%d,D%d', dr?'L':'R', SIZES[size], rx, ry)
+                            : format('AS%s%s D%d,D%d', dr?'L':'R', SIZES[size], rx, ry);
                     case 0x01:
                         // LSL, LSR: Logical Shift (register shifts);
                         // Destination Shifted By Count → Destination (p.217)
-                        if (bit == 0x00) {
-                            return format('LS%s%s #%d,D%d', dr?'L':'R', SIZES[size], rx, ry);
-                        } else {
-                            return format('LS%s%s D%d,D%d', dr?'L':'R', SIZES[size], rx, ry);
-                        }
-                    break;
+                        return (bit == 0x00)
+                            ? format('LS%s%s #%d,D%d', dr?'L':'R', SIZES[size], rx, ry)
+                            : format('LS%s%s D%d,D%d', dr?'L':'R', SIZES[size], rx, ry);
+                    case 0x02:
+                        // ROXL, ROXR; Rotate with Extend (register shifts);
+                        // Destination Rotated By < count > → Destination (p.268)
+                        return (bit == 0x00)
+                            ? format('ROX%s%s #%d,D%d', dr?'L':'R', SIZES[size], rx, ry)
+                            : format('ROX%s%s D%d,D%d', dr?'L':'R', SIZES[size], rx, ry);
+                    case 0x03:
+                        // ROL, ROR; Rotate (Without Extend) (register shifts);
+                        // Destination Rotated By < count > → Destination (p.264)
+                        return (bit == 0x00)
+                            ? format('RO%s%s #%d,D%d', dr?'L':'R', SIZES[size], rx, ry)
+                            : format('RO%s%s D%d,D%d', dr?'L':'R', SIZES[size], rx, ry);
                 }
             }
             break;
