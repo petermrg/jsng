@@ -46,6 +46,7 @@ m68000dasm.prototype.disassemble = function (address) {
             // ANDItoCCR: 0000 001 000 111 100
             // ANDI     : 0000 001 0sz mod reg - sz = 00|01|10
             // ADDI     : 0000 011 0sz mod reg - sz = 00|01|10
+            // RETM     : 0000 011 011 00d reg
             // BTST imm : 0000 100 000 mod reg
             // BCHG imm : 0000 100 001 mod reg
             // BCLR imm : 0000 100 010 mod reg
@@ -98,6 +99,12 @@ m68000dasm.prototype.disassemble = function (address) {
                         size = opmode;
                         data = this.getImmediateData(size);
                         return format('ADDI%s #%d,%s', SIZES[size], data, this.getEAFromInstruction(instruction, size));
+                    }
+                    if (opmode == 0x03) {
+                        if (mode <= 0x01) {
+                            // RTM: Return from Module; Reload Saved Module State from Stack (p.271)
+                            return format('RTM %s%d', mode?'A':'D', ry);
+                        }
                     }
                     break;
 
@@ -222,6 +229,7 @@ m68000dasm.prototype.disassemble = function (address) {
             // Illegal    : 0100 101 011 111 100
             // LINK       : 0100 111 001 010 reg
             // NOP        : 0100 111 001 110 001
+            // RTR        : 0100 111 001 110 111
             // JSR        : 0100 111 010 mod reg
             // JMP        : 0100 111 011 mod reg
             // LEA        : 0100 reg 111 mod reg
@@ -326,8 +334,13 @@ m68000dasm.prototype.disassemble = function (address) {
                                     // LINK: Link and Allocate; SP – 4 → SP; An → (SP); SP → An; SP + dn → SP (p.215)
                                     return format('LINK A%d,#%d', ry, this.getImmediateData(SIZE_WORD));
                                 case 0x06:
-                                    // NOP: No Operation; (p.251)
-                                    if (ry == 0x01) return format('NOP');
+                                    switch (ry) {
+                                        // NOP: No Operation; (p.251)
+                                        case 0x01: return format('NOP');
+                                        // RTR: Return and Restore Condition Codes;
+                                        // (SP) → CCR; SP + 2 → SP; (SP) → PC; SP + 4 → SP (p.272)
+                                        case 0x07: return format('RTR');
+                                    }
                             }
                             break;
                         case 0x02:
