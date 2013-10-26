@@ -480,6 +480,12 @@ m68000dasm.prototype.disassemble = function (address) {
 
         // 1001 SUB/SUBX
         case 0x09:
+            size = opmode & 0x03;
+            if (opmode < 0x04) {
+                return format('SUB%s %s,D%d', SIZES[size], this.getEAFromInstruction(instruction, size), rx);
+            } else {
+                return format('SUB%s D%d,%s', SIZES[size], rx, this.getEAFromInstruction(instruction, size));
+            }
             break;
 
         // 1010 (Unassigned, Reserved)
