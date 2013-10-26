@@ -386,14 +386,20 @@ m68000dasm.prototype.disassemble = function (address) {
         // 0101 ADDQ/SUBQ/Scc/DBcc/TRAPc c
         case 0x05:
             // ADDQ: 0101 dat 0sz mod reg - dat = 000..111; sz = 00..10
-            // DBcc: 0101 cc- -11 001 reg - cc = 0000..1111
-            size = (instruction >> 6) & 0x03;
+            // DBcc: 0101 cond 11 001 reg - cond = 0000..1111
+            // Scc : 0101 cond 11 mod reg - cond = 0000..1111
+            size = opmode & 0x03;
             if (size == 0x03) {
-                // DBcc: Test Condition, Decrement, and Branch;
-                // If Condition False Then (Dn – 1 → Dn; If Dn != – 1 Then PC + dn → PC) (p.194)
                 cc = (instruction >> 8) & 0x0F;
-                disp = this.getImmediateData(SIZE_WORD);
-                return (format('DB%s D%d,*%s%d', CONDITIONS[cc], ry, (disp >= 0)?'+':'', disp));
+                if (mode == 0x01) {
+                    // DBcc: Test Condition, Decrement, and Branch;
+                    // If Condition False Then (Dn – 1 → Dn; If Dn != – 1 Then PC + dn → PC) (p.194)
+                    disp = this.getImmediateData(SIZE_WORD);
+                    return format('DB%s D%d,*%s%d', CONDITIONS[cc], ry, (disp >= 0)?'+':'', disp);
+                } else {
+                    //Scc: Set According to Condition; If Condition True Then 1s → Dest. Else 0s → Destination (p.276)
+                    return format('S%s %s', CONDITIONS[cc], this.getEAFromInstruction(instruction));
+                }
             } else {
                 // ADDQ: Add Quick; Immediate Data + Destination → Destination (p.115)
                 data = (instruction >> 9) & 0x07;

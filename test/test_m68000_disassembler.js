@@ -960,6 +960,57 @@ describe('m68000', function () {
             assert.equal(dasm.disassemble(3), 'SBCD A7,A5');
         });
 
+        it('disassembles Scc (with all possible condition codes)', function() {
+            dasm.memory.setInt16(7, bin('0101 0100 11 000 101'));
+            assert.equal(dasm.disassemble(7), 'SCC D5');
+
+            dasm.memory.setInt16(7, bin('0101 0101 11 010 101'));
+            assert.equal(dasm.disassemble(7), 'SCS (A5)');
+
+            dasm.memory.setInt16(7, bin('0101 0111 11 011 101'));
+            assert.equal(dasm.disassemble(7), 'SEQ (A5)+');
+
+            dasm.memory.setInt16(7, bin('0101 0001 11 100 101'));
+            assert.equal(dasm.disassemble(7), 'SF -(A5)');
+
+            dasm.memory.setInt16(7, bin('0101 1100 11 000 101'));
+            assert.equal(dasm.disassemble(7), 'SGE D5');
+
+            dasm.memory.setInt16(7, bin('0101 1110 11 000 101'));
+            assert.equal(dasm.disassemble(7), 'SGT D5');
+
+            dasm.memory.setInt16(7, bin('0101 0010 11 000 101'));
+            assert.equal(dasm.disassemble(7), 'SHI D5');
+
+            dasm.memory.setInt16(7, bin('0101 1111 11 000 101'));
+            assert.equal(dasm.disassemble(7), 'SLE D5');
+
+            dasm.memory.setInt16(7, bin('0101 0011 11 000 101'));
+            assert.equal(dasm.disassemble(7), 'SLS D5');
+
+            dasm.memory.setInt16(7, bin('0101 1101 11 000 101'));
+            assert.equal(dasm.disassemble(7), 'SLT D5');
+
+            dasm.memory.setInt16(7, bin('0101 1011 11 000 101'));
+            assert.equal(dasm.disassemble(7), 'SMI D5');
+
+            dasm.memory.setInt16(7, bin('0101 0110 11 000 101'));
+            assert.equal(dasm.disassemble(7), 'SNE D5');
+
+            dasm.memory.setInt16(7, bin('0101 1010 11 000 101'));
+            assert.equal(dasm.disassemble(7), 'SPL D5');
+
+            dasm.memory.setInt16(7, bin('0101 0000 11 000 101'));
+            assert.equal(dasm.disassemble(7), 'ST D5');
+
+            dasm.memory.setInt16(7, bin('0101 1000 11 000 101'));
+            assert.equal(dasm.disassemble(7), 'SVC D5');
+
+            dasm.memory.setInt16(7, bin('0101 1001 11 000 101'));
+            assert.equal(dasm.disassemble(7), 'SVS D5');
+        });
+
+
     });
 
 });
