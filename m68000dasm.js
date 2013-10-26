@@ -438,7 +438,10 @@ m68000dasm.prototype.disassemble = function (address) {
 
         // 1000 OR/DIV/SBCD
         case 0x08:
+            // DIVU: 1000 reg 011 mod reg
+            // SBCD: 1000 reg 100 00r reg
             // DIVS: 1000 reg 111 mod reg
+            // OR  : 1000 reg opm mod reg - mod = 000|001|010|100|101|110
             rx = (instruction >> 9) & 0x07;
             opmode = (instruction >> 6) & 0x07;
             switch (opmode) {
@@ -446,18 +449,26 @@ m68000dasm.prototype.disassemble = function (address) {
                     // DIVU: Unsigned Divide; Destination ÷ Source → Destination (p.200)
                     // DIVU.W <ea> ,Dn32/16 → 16r – 16q
                     return format('DIVU.W %s,D%d', this.getEAFromInstruction(instruction, SIZE_LONG), rx);
+                case 0x04:
+                    // SBCD: Subtract Decimal with Extend; Destination10 – Source10 – X → Destination (p.274)
+                    switch (mode) {
+                        case 0x00:
+                            return format('SBCD D%d,D%d', ry, rx);
+                        case 0x01:
+                            return format('SBCD A%d,A%d', ry, rx);
+                    }
+                    break;
                 case 0x07:
                     // DIVS: Signed Divide; Destination ÷ Source → Destination (p.196)
                     // DIVS.W <ea> ,Dn32/16 → 16r – 16q
                     return format('DIVS.W %s,D%d', this.getEAFromInstruction(instruction, SIZE_LONG), rx);
-                default:
-                    // OR: Inclusive-OR Logical; Source V Destination → Destination (p.254)
-                    size = opmode & 0x03;
-                    if (opmode < 0x04) {
-                        return format('OR%s %s,D%d', SIZES[size], this.getEAFromInstruction(instruction, size), rx);
-                    } else {
-                        return format('OR%s D%d,%s', SIZES[size], rx, this.getEAFromInstruction(instruction, size));
-                    }
+            }
+            // OR: Inclusive-OR Logical; Source V Destination → Destination (p.254)
+            size = opmode & 0x03;
+            if (opmode < 0x04) {
+                return format('OR%s %s,D%d', SIZES[size], this.getEAFromInstruction(instruction, size), rx);
+            } else {
+                return format('OR%s D%d,%s', SIZES[size], rx, this.getEAFromInstruction(instruction, size));
             }
             break;
 

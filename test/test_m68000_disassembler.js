@@ -952,6 +952,14 @@ describe('m68000', function () {
             assert.equal(dasm.disassemble(3), 'RTS');
         });
 
+        it('disassembles SBCD', function() {
+            dasm.memory.setInt16(3, bin('1000 101 10000 0 111'));
+            assert.equal(dasm.disassemble(3), 'SBCD D7,D5');
+
+            dasm.memory.setInt16(3, bin('1000 101 10000 1 111'));
+            assert.equal(dasm.disassemble(3), 'SBCD A7,A5');
+        });
+
     });
 
 });
