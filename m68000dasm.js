@@ -217,6 +217,7 @@ m68000dasm.prototype.disassemble = function (address) {
             // MOVEtoCCR  : 0100 010 011 mod reg
             // NOT        : 0100 011 0sz mod reg - sz = 00|01|10
             // NBCD       : 0100 100 000 mod reg
+            // PEA        : 0100 100 001 mod reg
             // EXT        : 0100 100 opm 000 reg - opm = 010|011
             // Illegal    : 0100 101 011 111 100
             // LINK       : 0100 111 001 010 reg
@@ -288,9 +289,13 @@ m68000dasm.prototype.disassemble = function (address) {
                     }
 
                 case 0x04:
-                    if (opmode == 0x00) {
-                        // NBCD: Negate Decimal with Extend; 0 – Destination(Base10) – X → Destination (p.245)
-                        return format('NBCD %s', this.getEAFromInstruction(instruction));
+                    switch (opmode) {
+                        case 0x00:
+                            // NBCD: Negate Decimal with Extend; 0 – Destination(Base10) – X → Destination (p.245)
+                            return format('NBCD %s', this.getEAFromInstruction(instruction));
+                        case 0x01:
+                            // PEA: Push Effective Address; SP – 4 → SP; < ea > → (SP) (p.263)
+                            return format('PEA %s', this.getEAFromInstruction(instruction));
                     }
                     // EXT: Sign-Extend; Destination Sign-Extended → Destination (p.210)
                     if (mode == 0x00) {

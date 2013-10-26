@@ -862,6 +862,11 @@ describe('m68000', function () {
             assert.equal(dasm.disassemble(3), 'ORI #127,CCR');
         });
 
+        it('disassembles PEA', function() {
+            dasm.memory.setInt16(3, bin('0100100001 010 101'));
+            assert.equal(dasm.disassemble(3), 'PEA (A5)');
+        });
+
     });
 
 });
