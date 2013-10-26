@@ -229,6 +229,7 @@ m68000dasm.prototype.disassemble = function (address) {
             // Illegal    : 0100 101 011 111 100
             // LINK       : 0100 111 001 010 reg
             // NOP        : 0100 111 001 110 001
+            // RTS        : 0100 111 001 110 101
             // RTR        : 0100 111 001 110 111
             // JSR        : 0100 111 010 mod reg
             // JMP        : 0100 111 011 mod reg
@@ -337,6 +338,8 @@ m68000dasm.prototype.disassemble = function (address) {
                                     switch (ry) {
                                         // NOP: No Operation; (p.251)
                                         case 0x01: return format('NOP');
+                                        // RTS: Return from Subroutine; (SP) → PC; SP + 4 → SP (p.273)
+                                        case 0x05: return format('RTS');
                                         // RTR: Return and Restore Condition Codes;
                                         // (SP) → CCR; SP + 2 → SP; (SP) → PC; SP + 4 → SP (p.272)
                                         case 0x07: return format('RTR');
