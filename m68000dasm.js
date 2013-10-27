@@ -234,9 +234,12 @@ m68000dasm.prototype.disassemble = function (address) {
             // MOVEtoCCR  : 0100 010 011 mod reg
             // NOT        : 0100 011 0sz mod reg - sz = 00|01|10
             // NBCD       : 0100 100 000 mod reg
+            // SWAP       : 0100 100 001 000 reg
             // PEA        : 0100 100 001 mod reg
             // EXT        : 0100 100 opm 000 reg - opm = 010|011
             // Illegal    : 0100 101 011 111 100
+            // TAS        : 0100 101 011 mod reg
+            // MOVEM      : 0100 1d0 01s mod reg
             // LINK       : 0100 111 001 010 reg
             // NOP        : 0100 111 001 110 001
             // RTS        : 0100 111 001 110 101
@@ -245,7 +248,6 @@ m68000dasm.prototype.disassemble = function (address) {
             // JMP        : 0100 111 011 mod reg
             // LEA        : 0100 reg 111 mod reg
             // CHK        : 0100 reg sz0 mod reg - sz = 11|10
-            // MOVEM      : 0100 1d0 01s mod reg
             switch (rx) {
                 case 0x00:
                     switch (opmode) {
@@ -313,8 +315,13 @@ m68000dasm.prototype.disassemble = function (address) {
                             // NBCD: Negate Decimal with Extend; 0 – Destination(Base10) – X → Destination (p.245)
                             return format('NBCD %s', this.getEAFromInstruction(instruction));
                         case 0x01:
-                            // PEA: Push Effective Address; SP – 4 → SP; < ea > → (SP) (p.263)
-                            return format('PEA %s', this.getEAFromInstruction(instruction));
+                            if (mode == 0x00) {
+                                // SWAP: Swap Register Halves; Register 31 – 16 ←→ Register 15 – 0 (p.289)
+                                return format('SWAP D%d', ry);
+                            } else {
+                                // PEA: Push Effective Address; SP – 4 → SP; < ea > → (SP) (p.263)
+                                return format('PEA %s', this.getEAFromInstruction(instruction));
+                            }
                     }
                     // EXT: Sign-Extend; Destination Sign-Extended → Destination (p.210)
                     if (mode == 0x00) {
@@ -330,10 +337,11 @@ m68000dasm.prototype.disassemble = function (address) {
                 case 0x05:
                     switch (opmode) {
                         case 0x03:
-                            if ((instruction & 0x3F) == 0x3C) {
+                            if (mode == 0x07 && ry == 0x04) {
                                 // ILLEGAL: Take Illegal Instruction Trap (p.211)
                                 return format('ILLEGAL');
                             }
+                            return format('TAS %s', this.getEAFromInstruction(instruction));
                     }
                     break;
 

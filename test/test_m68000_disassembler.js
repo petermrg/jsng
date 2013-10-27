@@ -1087,6 +1087,16 @@ describe('m68000', function () {
             assert.equal(dasm.disassemble(3), 'SUBX.L A7,A5');
         });
 
+        it('disassembles SWAP', function() {
+            dasm.memory.setInt16(3, bin('0100100001000 101'));
+            assert.equal(dasm.disassemble(3), 'SWAP D5');
+        });
+
+        it('disassembles TAS', function() {
+            dasm.memory.setInt16(3, bin('0100101011 000 101'));
+            assert.equal(dasm.disassemble(3), 'TAS D5');
+        });
+
     });
 
 });
