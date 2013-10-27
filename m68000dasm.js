@@ -45,6 +45,7 @@ m68000dasm.prototype.disassemble = function (address) {
             // ORItoCCR : 0000 000 000 111 100
             // ANDItoCCR: 0000 001 000 111 100
             // ANDI     : 0000 001 0sz mod reg - sz = 00|01|10
+            // SUBI     : 0000 010 0sz mod reg - sz = 00|01|10
             // ADDI     : 0000 011 0sz mod reg - sz = 00|01|10
             // RETM     : 0000 011 011 00d reg
             // BTST imm : 0000 100 000 mod reg
@@ -90,6 +91,15 @@ m68000dasm.prototype.disassemble = function (address) {
                         size = opmode;
                         data = this.getImmediateData(size);
                         return format('ANDI%s #%d,%s', SIZES[size], data, this.getEAFromInstruction(instruction, size));
+                    }
+                    break;
+
+                case 0x02:
+                    if (opmode <= 0x02) {
+                        // SUBI: Subtract Immediate: Destination – Immediate Data → Destination (p.283)
+                        size = opmode;
+                        data = this.getImmediateData(size);
+                        return format('SUBI%s #%d,%s', SIZES[size], data, this.getEAFromInstruction(instruction, size));
                     }
                     break;
 

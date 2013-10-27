@@ -1044,6 +1044,17 @@ describe('m68000', function () {
             assert.equal(dasm.disassemble(3), 'SUBA.L (A6),D5');
         });
 
+        it('disassembles SUBI', function () {
+            dasm.memory.setInt32(9, bin('0000 010 0 00 000 101  11111111 00000001'));
+            assert.equal(dasm.disassemble(9), 'SUBI #1,D5');
+
+            dasm.memory.setInt32(9, bin('0000 010 0 01 100 101  11111111 00000001'));
+            assert.equal(dasm.disassemble(9), 'SUBI.W #-255,-(A5)');
+
+            dasm.memory.setInt16(7, bin('0000 010 0 10 010 111'));
+            dasm.memory.setInt32(9, bin('000001100 1000101 11111111 00000001'));
+            assert.equal(dasm.disassemble(7), 'SUBI.L #105250561,(A7)');
+        });
 
     });
 
