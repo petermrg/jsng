@@ -1107,6 +1107,17 @@ describe('m68000', function () {
             assert.equal(dasm.disassemble(3), 'TRAPV');
         });
 
+        it('disassembles TST', function() {
+            dasm.memory.setInt16(3, bin('01001010 00 000 101'));
+            assert.equal(dasm.disassemble(3), 'TST D5');
+
+            dasm.memory.setInt16(3, bin('01001010 01 000 101'));
+            assert.equal(dasm.disassemble(3), 'TST.W D5');
+
+            dasm.memory.setInt16(3, bin('01001010 10 000 101'));
+            assert.equal(dasm.disassemble(3), 'TST.L D5');
+        });
+
     });
 
 });

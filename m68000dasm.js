@@ -237,6 +237,7 @@ m68000dasm.prototype.disassemble = function (address) {
             // SWAP       : 0100 100 001 000 reg
             // PEA        : 0100 100 001 mod reg
             // EXT        : 0100 100 opm 000 reg - opm = 010|011
+            // TST        : 0100 101 0sz mod reg - sz = 00|01|10
             // Illegal    : 0100 101 011 111 100
             // TAS        : 0100 101 011 mod reg
             // MOVEM      : 0100 1d0 01s mod reg
@@ -339,6 +340,14 @@ m68000dasm.prototype.disassemble = function (address) {
 
                 case 0x05:
                     switch (opmode) {
+                        case 0x00:
+                            // intentional fall-through
+                        case 0x01:
+                            // intentional fall-through
+                        case 0x02:
+                            // TST: Test an Operand; Destination Tested → Condition Codes (p.296)
+                            size = opmode;
+                            return format('TST%s %s', SIZES[size], this.getEAFromInstruction(instruction));
                         case 0x03:
                             if (mode == 0x07 && ry == 0x04) {
                                 // ILLEGAL: Take Illegal Instruction Trap (p.211)
