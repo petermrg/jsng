@@ -398,8 +398,18 @@ m68000dasm.prototype.disassemble = function (address) {
             // ADDQ: 0101 dat 0sz mod reg - dat = 000..111; sz = 00..10
             // DBcc: 0101 cond 11 001 reg - cond = 0000..1111
             // Scc : 0101 cond 11 mod reg - cond = 0000..1111
+            // SUBQ: 0101 dat 1sz mod reg - sz = 00|01|10
             size = opmode & 0x03;
-            if (size == 0x03) {
+            data = rx;
+            if (size < 0x03) {
+                if (opmode < 0x04) {
+                    // ADDQ: Add Quick; Immediate Data + Destination → Destination (p.115)
+                    return format('ADDQ%s #%d,%s', SIZES[size], data, this.getEAFromInstruction(instruction, size));
+                } else {
+                    // SUBQ: Subtract Quick; Destination – Immediate Data → Destination (p.285)
+                    return format('SUBQ%s #%d,%s', SIZES[size], data, this.getEAFromInstruction(instruction, size));
+                }
+            } else {
                 cc = (instruction >> 8) & 0x0F;
                 if (mode == 0x01) {
                     // DBcc: Test Condition, Decrement, and Branch;
@@ -410,10 +420,6 @@ m68000dasm.prototype.disassemble = function (address) {
                     //Scc: Set According to Condition; If Condition True Then 1s → Dest. Else 0s → Destination (p.276)
                     return format('S%s %s', CONDITIONS[cc], this.getEAFromInstruction(instruction));
                 }
-            } else {
-                // ADDQ: Add Quick; Immediate Data + Destination → Destination (p.115)
-                data = (instruction >> 9) & 0x07;
-                return format('ADDQ%s #%d,%s', SIZES[size], data, this.getEAFromInstruction(instruction, size));
             }
             break;
 

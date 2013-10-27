@@ -1056,6 +1056,17 @@ describe('m68000', function () {
             assert.equal(dasm.disassemble(7), 'SUBI.L #105250561,(A7)');
         });
 
+        it('disassembles SUBQ', function () {
+            dasm.memory.setInt16(9, bin('0101 111 1 00 000 101'));
+            assert.equal(dasm.disassemble(9), 'SUBQ #7,D5');
+
+            dasm.memory.setInt16(1, bin('0101 101 1 01 000 001'));
+            assert.equal(dasm.disassemble(1), 'SUBQ.W #5,D1');
+
+            dasm.memory.setInt32(9, bin('0101 010 1 10 110 111  00000101 01000000'));
+            assert.equal(dasm.disassemble(9), 'SUBQ.L #2,(64,A7,X5)');
+        });
+
     });
 
 });
