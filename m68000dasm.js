@@ -268,6 +268,7 @@ m68000dasm.prototype.disassemble = function (address) {
             // NEG        : 0100 010 0sz mod reg - sz = 00|01|10
             // MOVEtoCCR  : 0100 010 011 mod reg
             // NOT        : 0100 011 0sz mod reg - sz = 00|01|10
+            // MOVEtoSR   : 0100 011 011 mod reg
             // NBCD       : 0100 100 000 mod reg
             // SWAP       : 0100 100 001 000 reg
             // PEA        : 0100 100 001 mod reg
@@ -346,6 +347,10 @@ m68000dasm.prototype.disassemble = function (address) {
                             // NEG: Negate; 0 – Destination → Destination (p.247)
                             sz = opmode;
                             return format('NOT%s %s', SIZES[sz], this.getEAFromInstruction(instruction, sz));
+                        case 0x03:
+                            // MOVE to SR: Move to the Status Register;
+                            // If Supervisor State Then Source → SR Else TRAP (p.473)
+                            return format('MOVE %s,SR', this.getEAFromInstruction(instruction, SIZE_WORD));
                     }
                     break;
 

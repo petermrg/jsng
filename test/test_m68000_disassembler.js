@@ -1133,6 +1133,11 @@ describe('m68000', function () {
             assert.equal(dasm.disassemble(3), 'EORI #3855,SR');
         });
 
+        it('disassembles MOVE to SR', function() {
+            dasm.memory.setInt16(3, bin('0100011011 000 101'));
+            assert.equal(dasm.disassemble(3), 'MOVE D5,SR');
+        });
+
     });
 
 });
