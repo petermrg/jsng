@@ -1151,6 +1151,11 @@ describe('m68000', function () {
             assert.equal(dasm.disassemble(3), 'ORI #3855,SR');
         });
 
+        it('disassembles RESET', function() {
+            dasm.memory.setInt16(2, bin('0100111001110000'));
+            assert.equal(dasm.disassemble(2), 'RESET');
+        });
+
     });
 
 });

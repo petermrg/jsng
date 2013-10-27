@@ -287,6 +287,7 @@ m68000dasm.prototype.disassemble = function (address) {
             // LINK       : 0100 111 001 010 reg
             // UNLK       : 0100 111 001 011 reg
             // MOVE USP   : 0100 111 001 10d reg
+            // RESET      : 0100 111 001 110 000
             // NOP        : 0100 111 001 110 001
             // RTS        : 0100 111 001 110 101
             // TRAPV      : 0100 111 001 110 110
@@ -430,6 +431,10 @@ m68000dasm.prototype.disassemble = function (address) {
                                     return format('MOVE USP,A%d', ry);
                                 case 0x06:
                                     switch (ry) {
+                                        case 0x00:
+                                            // RESET: Reset External Devices;
+                                            // If Supervisor State Then Assert RESET Line Else TRAP (p.537)
+                                            return format('RESET');
                                         case 0x01:
                                             // NOP: No Operation; (p.251)
                                             return format('NOP');
