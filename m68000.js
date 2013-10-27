@@ -224,12 +224,12 @@ STOP
 *SUBI
 *SUBQ
 *SUBX
-SWAP
-TAS
-TRAP
-TRAPV
-TST
-UNLK
+*SWAP
+*TAS
+*TRAP
+*TRAPV
+*TST
+*UNLK
  */
 
 var m68000 = function(memory) {

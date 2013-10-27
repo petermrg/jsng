@@ -1118,6 +1118,11 @@ describe('m68000', function () {
             assert.equal(dasm.disassemble(3), 'TST.L D5');
         });
 
+        it('disassembles UNLK', function() {
+            dasm.memory.setInt16(3, bin('0100111001011 101'));
+            assert.equal(dasm.disassemble(3), 'UNLK A5');
+        });
+
     });
 
 });

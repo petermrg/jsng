@@ -243,6 +243,7 @@ m68000dasm.prototype.disassemble = function (address) {
             // MOVEM      : 0100 1d0 01s mod reg
             // TRAP       : 0100 111 001 00 vect
             // LINK       : 0100 111 001 010 reg
+            // UNLK       : 0100 111 001 011 reg
             // NOP        : 0100 111 001 110 001
             // RTS        : 0100 111 001 110 101
             // TRAPV      : 0100 111 001 110 110
@@ -371,6 +372,9 @@ m68000dasm.prototype.disassemble = function (address) {
                                 case 0x02:
                                     // LINK: Link and Allocate; SP – 4 → SP; An → (SP); SP → An; SP + dn → SP (p.215)
                                     return format('LINK A%d,#%d', ry, this.getImmediateData(SIZE_WORD));
+                                case 0x03:
+                                    // UNLK: Unlink; An → SP; (SP) → An; SP + 4 → SP (p.298)
+                                    return format('UNLK A%d', ry);
                                 case 0x06:
                                     switch (ry) {
                                         case 0x01:
