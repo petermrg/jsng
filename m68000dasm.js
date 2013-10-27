@@ -240,9 +240,11 @@ m68000dasm.prototype.disassemble = function (address) {
             // Illegal    : 0100 101 011 111 100
             // TAS        : 0100 101 011 mod reg
             // MOVEM      : 0100 1d0 01s mod reg
+            // TRAP       : 0100 111 001 00 vect
             // LINK       : 0100 111 001 010 reg
             // NOP        : 0100 111 001 110 001
             // RTS        : 0100 111 001 110 101
+            // TRAPV      : 0100 111 001 110 110
             // RTR        : 0100 111 001 110 111
             // JSR        : 0100 111 010 mod reg
             // JMP        : 0100 111 011 mod reg
@@ -308,6 +310,7 @@ m68000dasm.prototype.disassemble = function (address) {
                             size = opmode;
                             return format('NOT%s %s', SIZES[size], this.getEAFromInstruction(instruction, size));
                     }
+                    break;
 
                 case 0x04:
                     switch (opmode) {
@@ -319,7 +322,7 @@ m68000dasm.prototype.disassemble = function (address) {
                                 // SWAP: Swap Register Halves; Register 31 – 16 ←→ Register 15 – 0 (p.289)
                                 return format('SWAP D%d', ry);
                             } else {
-                                // PEA: Push Effective Address; SP – 4 → SP; < ea > → (SP) (p.263)
+                                // PEA: Push Effective Address; SP – 4 → SP; <ea> → (SP) (p.263)
                                 return format('PEA %s', this.getEAFromInstruction(instruction));
                             }
                     }
@@ -341,6 +344,8 @@ m68000dasm.prototype.disassemble = function (address) {
                                 // ILLEGAL: Take Illegal Instruction Trap (p.211)
                                 return format('ILLEGAL');
                             }
+                            // TAS: Test and Set an Operand;
+                            // Destination Tested → Condition Codes; 1 → Bit 7 of Destination (p.290)
                             return format('TAS %s', this.getEAFromInstruction(instruction));
                     }
                     break;
@@ -349,18 +354,29 @@ m68000dasm.prototype.disassemble = function (address) {
                     switch (opmode) {
                         case 0x01:
                             switch (mode) {
+                                case 0x00:
+                                    // intentional fall-through
+                                case 0x01:
+                                    // TRAP: Trap; (p.292)
+                                    return format('TRAP #%d', instruction & 0x0F);
                                 case 0x02:
                                     // LINK: Link and Allocate; SP – 4 → SP; An → (SP); SP → An; SP + dn → SP (p.215)
                                     return format('LINK A%d,#%d', ry, this.getImmediateData(SIZE_WORD));
                                 case 0x06:
                                     switch (ry) {
-                                        // NOP: No Operation; (p.251)
-                                        case 0x01: return format('NOP');
-                                        // RTS: Return from Subroutine; (SP) → PC; SP + 4 → SP (p.273)
-                                        case 0x05: return format('RTS');
-                                        // RTR: Return and Restore Condition Codes;
-                                        // (SP) → CCR; SP + 2 → SP; (SP) → PC; SP + 4 → SP (p.272)
-                                        case 0x07: return format('RTR');
+                                        case 0x01:
+                                            // NOP: No Operation; (p.251)
+                                            return format('NOP');
+                                        case 0x05:
+                                            // RTS: Return from Subroutine; (SP) → PC; SP + 4 → SP (p.273)
+                                            return format('RTS');
+                                        case 0x06:
+                                            // TRAPV: Trap on Overflow; If V Then TRAP (p.295)
+                                            return format('TRAPV');
+                                        case 0x07:
+                                            // RTR: Return and Restore Condition Codes;
+                                            // (SP) → CCR; SP + 2 → SP; (SP) → PC; SP + 4 → SP (p.272)
+                                            return format('RTR');
                                     }
                             }
                             break;
