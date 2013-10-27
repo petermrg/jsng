@@ -52,8 +52,9 @@ m68000dasm.prototype.disassemble = function (address) {
 
         // 0000 Bit Manipulation/MOVEP/Immediate
         case 0x00:
-            // ORI      : 0000 000 0sz mod reg - sz = 00|01|10
             // ORItoCCR : 0000 000 000 111 100
+            // ORI to SR: 0000 000 001 111 100
+            // ORI      : 0000 000 0sz mod reg - sz = 00|01|10
             // ANDItoCCR: 0000 001 000 111 100
             // ANDItoSR : 0000 001 001 111 100
             // ANDI     : 0000 001 0sz mod reg - sz = 00|01|10
@@ -84,6 +85,11 @@ m68000dasm.prototype.disassemble = function (address) {
                             }
                             // intentional fall-through
                         case 0x01:
+                            if (mode == 0x07 && ry == 0x04) {
+                                // ORI to SR: Inclusive-OR Immediate to the Status Register;
+                                // If Supervisor State Then Source V SR → SR Else TRAP (p.481)
+                                return format('ORI #%d,SR', this.getImmediateData(SIZE_WORD));
+                            }
                             // intentional fall-through
                         case 0x02:
                             // ORI: Inclusive-OR; Immediate Data V Destination → Destination (p.257)

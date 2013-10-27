@@ -1146,6 +1146,11 @@ describe('m68000', function () {
             assert.equal(dasm.disassemble(3), 'MOVE USP,A5');
         });
 
+        it('disassembles ORI to SR', function() {
+            dasm.memory.setInt32(3, bin('0000000001111100 0000111100001111'));
+            assert.equal(dasm.disassemble(3), 'ORI #3855,SR');
+        });
+
     });
 
 });
