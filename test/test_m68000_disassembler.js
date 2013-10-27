@@ -934,14 +934,6 @@ describe('m68000', function () {
             assert.equal(dasm.disassemble(0), 'ROXR -(A6)');
         });
 
-        it('disassembles RTM', function() {
-            dasm.memory.setInt16(3, bin('000001101100 0 101'));
-            assert.equal(dasm.disassemble(3), 'RTM D5');
-
-            dasm.memory.setInt16(3, bin('000001101100 1 101'));
-            assert.equal(dasm.disassemble(3), 'RTM A5');
-        });
-
         it('disassembles RTR', function() {
             dasm.memory.setInt16(3, bin('0100111001110111'));
             assert.equal(dasm.disassemble(3), 'RTR');

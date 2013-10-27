@@ -194,7 +194,7 @@ UB                Upper Bound
 *MOVE to CCR
 *MOVE from SR
 *MOVE to SR
-MOVE USP
+*MOVE USP
 *MOVEM
 *MOVEP
 *MOVEQ
@@ -208,12 +208,12 @@ MOVE USP
 *OR
 *ORI
 *ORI to CCR
-ORI to SR
+*ORI to SR
 *PEA
 *RESET
 *ROL,ROR
 *ROXL,ROXR
-RTE (RTM?)
+RTE
 *RTR
 *RTS
 *SBCD

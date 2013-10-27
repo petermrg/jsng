@@ -140,12 +140,6 @@ m68000dasm.prototype.disassemble = function (address) {
                         data = this.getImmediateData(sz);
                         return format('ADDI%s #%d,%s', SIZES[sz], data, this.getEAFromInstruction(instruction, sz));
                     }
-                    if (opmode == 0x03) {
-                        if (mode <= 0x01) {
-                            // RTM: Return from Module; Reload Saved Module State from Stack (p.271)
-                            return format('RTM %s%d', mode?'A':'D', ry);
-                        }
-                    }
                     break;
 
                 case 0x04:
@@ -296,6 +290,7 @@ m68000dasm.prototype.disassemble = function (address) {
             // JMP        : 0100 111 011 mod reg
             // LEA        : 0100 reg 111 mod reg
             // CHK        : 0100 reg sz0 mod reg - sz = 11|10
+            // RTE 538
             switch (rx) {
                 case 0x00:
                     switch (opmode) {
