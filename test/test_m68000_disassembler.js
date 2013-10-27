@@ -1153,6 +1153,11 @@ describe('m68000', function () {
             assert.equal(dasm.disassemble(2), 'RTE');
         });
 
+        it('disassembles STOP', function() {
+            dasm.memory.setInt16(2, bin('0100111001110010'));
+            assert.equal(dasm.disassemble(2), 'STOP');
+        });
+
     });
 
 });

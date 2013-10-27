@@ -283,6 +283,7 @@ m68000dasm.prototype.disassemble = function (address) {
             // MOVE USP   : 0100 111 001 10d reg
             // RESET      : 0100 111 001 110 000
             // NOP        : 0100 111 001 110 001
+            // STOP       : 0100 111 001 110 010
             // RTE        : 0100 111 001 110 011
             // RTS        : 0100 111 001 110 101
             // TRAPV      : 0100 111 001 110 110
@@ -433,6 +434,10 @@ m68000dasm.prototype.disassemble = function (address) {
                                         case 0x01:
                                             // NOP: No Operation; (p.251)
                                             return format('NOP');
+                                        case 0x02:
+                                            // STOP: Load Status Register and Stop;
+                                            // If Supervisor State Then Immediate Data → SR; STOP Else TRAP (p.539)
+                                            return format('STOP');
                                         case 0x03:
                                             // RTE: Return from Exception
                                             // If Supervisor State Then (SP) → SR; SP + 2 → SP; (SP) → PC; SP + 4 → SP;
