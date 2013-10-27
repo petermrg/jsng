@@ -670,18 +670,19 @@ m68000dasm.prototype.disassemble = function (address) {
             break;
 
         // 1100 AND/MUL/ABCD/EXG
-        // ABCD: 1100 reg 100 00b reg
-        // MULS: 1100 reg 111 mod reg
-        // MULU: 1100 reg 011 mod reg
-        // EXG : 1100 reg 1op-mod reg - op-mod = 01000|01001|10001
-        // AND : 1100 reg opm mod reg - opm = 000|001|010|110|101|110
         case 0x0C:
+            // ABCD: 1100 reg 100 00b reg
+            // MULS: 1100 reg 111 mod reg
+            // MULU: 1100 reg 011 mod reg
+            // EXG : 1100 reg 1op-mod reg - op-mod = 01000|01001|10001
+            // AND : 1100 reg opm mod reg - opm = 000|001|010|110|101|110
             switch (opmode) {
                 case 0x03:
                     // MULU: Signed Multiply; Source x Destination → Destination (p.239)
                     return format('MULU.W %s,D%d', this.getEAFromInstruction(instruction, SIZE_WORD), rx);
                 case 0x04:
                     switch (mode) {
+                        // ABCD: Add Decimal with Extend; Source10 + Destination10 + X → Destination (p.106)
                         case 0:
                             return format('ABCD D%d,D%d', ry, rx);
                         case 1:
@@ -933,6 +934,7 @@ m68000dasm.prototype.getImmediateData = function(size) {
 
 /**
  * Get string representation of register mask
+ *
  * @param  {integer} mask
  * @param  {integer} direction 0: reg to mem; 1: mem to reg
  * @return {string}
