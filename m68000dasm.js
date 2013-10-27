@@ -19,23 +19,34 @@ m68000dasm = function(memory) {
 }
 
 /**
- * Dissasemble instruction at address
+ * Dissasemble instruction at address. If no address is given, it uses the internal pointer.
  *
- * @param  {integer} address
- * @return {string}  instruction
+ * @param  {integer} address (Optional)
+ * @return {string}  Assembler syntax
  */
 m68000dasm.prototype.disassemble = function (address) {
     this.pointer = (arguments.length == 1) ? address : this.pointer;
-    var instruction = this.memory.getUint16(address);
+    var instruction = this.memory.getUint16(this.pointer);
     this.pointer+= 2;
 
+    // Common instruction parts:
+    //                               ┌─────────────────┐
+    //                               │effective address│
+    // ┌──┬──┬──┬──┬──┬──┬──┬──┬──┬──┼──┬──┬──┬──┬──┬──┤
+    // │  opcode   │   rx   │ opmode │  mode  │   ry   │
+    // └──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴──┘
+    // 15          12       9        6        3        0
+    //
     var opcode = (instruction >> 12) & 0x0F,
         rx = (instruction >> 9) & 0x07,
         opmode = (instruction >> 6) & 0x07,
         mode = (instruction >> 3) & 0x07,
         ry = instruction & 0x07;
 
-    var dr, size, data, bit, cc, disp;
+    var dr, // direction
+        sz, // size
+        data,
+        cc; // condition code
 
     switch (opcode) {
 
@@ -74,9 +85,9 @@ m68000dasm.prototype.disassemble = function (address) {
                             // intentional fall-through
                         case 0x02:
                             // ORI: Inclusive-OR; Immediate Data V Destination → Destination (p.257)
-                            size = opmode;
-                            data = this.getImmediateData(size);
-                            return format('ORI%s #%d,%s', SIZES[size], data, this.getEAFromInstruction(instruction, size));
+                            sz = opmode;
+                            data = this.getImmediateData(sz);
+                            return format('ORI%s #%d,%s', SIZES[sz], data, this.getEAFromInstruction(instruction, sz));
                     }
                     break;
 
@@ -88,27 +99,27 @@ m68000dasm.prototype.disassemble = function (address) {
                     }
                     if (opmode <= 0x02) {
                         // ANDI: AND Immediate: Immediate Data Λ Destination → Destination (p.122)
-                        size = opmode;
-                        data = this.getImmediateData(size);
-                        return format('ANDI%s #%d,%s', SIZES[size], data, this.getEAFromInstruction(instruction, size));
+                        sz = opmode;
+                        data = this.getImmediateData(sz);
+                        return format('ANDI%s #%d,%s', SIZES[sz], data, this.getEAFromInstruction(instruction, sz));
                     }
                     break;
 
                 case 0x02:
                     if (opmode <= 0x02) {
                         // SUBI: Subtract Immediate: Destination – Immediate Data → Destination (p.283)
-                        size = opmode;
-                        data = this.getImmediateData(size);
-                        return format('SUBI%s #%d,%s', SIZES[size], data, this.getEAFromInstruction(instruction, size));
+                        sz = opmode;
+                        data = this.getImmediateData(sz);
+                        return format('SUBI%s #%d,%s', SIZES[sz], data, this.getEAFromInstruction(instruction, sz));
                     }
                     break;
 
                 case 0x03:
                     if (opmode <= 0x02) {
                         // ADDI: Add Immediate; Immediate Data + Destination → Destination (p.113)
-                        size = opmode;
-                        data = this.getImmediateData(size);
-                        return format('ADDI%s #%d,%s', SIZES[size], data, this.getEAFromInstruction(instruction, size));
+                        sz = opmode;
+                        data = this.getImmediateData(sz);
+                        return format('ADDI%s #%d,%s', SIZES[sz], data, this.getEAFromInstruction(instruction, sz));
                     }
                     if (opmode == 0x03) {
                         if (mode <= 0x01) {
@@ -122,20 +133,20 @@ m68000dasm.prototype.disassemble = function (address) {
                     switch (opmode) {
                         case 0x00:
                             // BTST: Test a Bit; bit number static, specified as immediate data (p.166)
-                            bit = this.getImmediateData(SIZE_WORD) % 32;
-                            return format('BTST #%d,%s', bit, this.getEAFromInstruction(instruction, SIZE_BYTE));
+                            data = this.getImmediateData(SIZE_WORD) % 32;
+                            return format('BTST #%d,%s', data, this.getEAFromInstruction(instruction, SIZE_BYTE));
                         case 0x01:
                             // BCHG: Test a Bit and Change; bit number static, specified as immediate data (p.133)
-                            bit = this.getImmediateData(SIZE_WORD) % 32;
-                            return format('BCHG #%d,%s', bit, this.getEAFromInstruction(instruction, SIZE_BYTE));
+                            data = this.getImmediateData(SIZE_WORD) % 32;
+                            return format('BCHG #%d,%s', data, this.getEAFromInstruction(instruction, SIZE_BYTE));
                         case 0x02:
                             // BCLR: Test a Bit and clear; bit number static, specified as immediate data (p.135)
-                            bit = this.getImmediateData(SIZE_WORD) % 32;
-                            return format('BCLR #%d,%s', bit, this.getEAFromInstruction(instruction, SIZE_BYTE));
+                            data = this.getImmediateData(SIZE_WORD) % 32;
+                            return format('BCLR #%d,%s', data, this.getEAFromInstruction(instruction, SIZE_BYTE));
                         case 0x03:
                             // BSET: Test Bit and Set; bit number static, specified as immediate data (p.161)
-                            bit = this.getImmediateData(SIZE_WORD) % 32;
-                            return format('BSET #%d,%s', bit, this.getEAFromInstruction(instruction, SIZE_BYTE));
+                            data = this.getImmediateData(SIZE_WORD) % 32;
+                            return format('BSET #%d,%s', data, this.getEAFromInstruction(instruction, SIZE_BYTE));
                     }
                     break;
 
@@ -147,18 +158,18 @@ m68000dasm.prototype.disassemble = function (address) {
                     }
                     if (opmode <= 0x02) {
                         // EORI: Exclusive-OR Immediate; Immediate Data ⊕ Destination → Destination (p.206)
-                        size = opmode;
-                        data = this.getImmediateData(size);
-                        return format('EORI%s #%d,%s', SIZES[size], data, this.getEAFromInstruction(instruction, size));
+                        sz = opmode;
+                        data = this.getImmediateData(sz);
+                        return format('EORI%s #%d,%s', SIZES[sz], data, this.getEAFromInstruction(instruction, sz));
                     }
                     break;
 
                 case 0x06:
                     if (opmode <= 0x02) {
                         // CMPI: Compare Immediate: Destination - Immediate Data → cc (p.183)
-                        size = (instruction >> 6) & 0x03;
-                        data = this.getImmediateData(size);
-                        return format('CMPI%s #%d,%s', SIZES[size], data, this.getEAFromInstruction(instruction, size));
+                        sz = (instruction >> 6) & 0x03;
+                        data = this.getImmediateData(sz);
+                        return format('CMPI%s #%d,%s', SIZES[sz], data, this.getEAFromInstruction(instruction, sz));
                     }
                     break;
             }
@@ -261,8 +272,8 @@ m68000dasm.prototype.disassemble = function (address) {
                             // intentional fall-through
                         case 0x02:
                             // NEGX: Negate with Extend; 0 – Destination – X → Destination (p.249)
-                            size = opmode;
-                            return format('NEGX%s %s', SIZES[size], this.getEAFromInstruction(instruction, size));
+                            sz = opmode;
+                            return format('NEGX%s %s', SIZES[sz], this.getEAFromInstruction(instruction, sz));
                         case 0x03:
                             // MOVE from SR: Move from the Status Register; SR → Destination (p.229)
                             return format('MOVE SR,%s', this.getEAFromInstruction(instruction));
@@ -277,8 +288,8 @@ m68000dasm.prototype.disassemble = function (address) {
                             // intentional fall-through
                         case 0x02:
                             // CLR: Clear an Operand; 0 → Destination (p.177)
-                            size = opmode;
-                            return format('CLR%s %s', SIZES[size], this.getEAFromInstruction(instruction, size));
+                            sz = opmode;
+                            return format('CLR%s %s', SIZES[sz], this.getEAFromInstruction(instruction, sz));
                         case 0x03:
                             // MOVE from CCR: Move from the Condition Code Register; CCR → Destination (p.225)
                             return format('MOVE CCR,%s', this.getEAFromInstruction(instruction));
@@ -293,8 +304,8 @@ m68000dasm.prototype.disassemble = function (address) {
                             // intentional fall-through
                         case 0x02:
                             // NEG: Negate; 0 – Destination → Destination (p.247)
-                            size = opmode;
-                            return format('NEG%s %s', SIZES[size], this.getEAFromInstruction(instruction, size));
+                            sz = opmode;
+                            return format('NEG%s %s', SIZES[sz], this.getEAFromInstruction(instruction, sz));
                         case 0x03:
                             // MOVE to CCR: Move to Condition Code Register; Source → CCR (p.227)
                             return format('MOVE %s,CCR', this.getEAFromInstruction(instruction));
@@ -309,8 +320,8 @@ m68000dasm.prototype.disassemble = function (address) {
                             // intentional fall-through
                         case 0x02:
                             // NEG: Negate; 0 – Destination → Destination (p.247)
-                            size = opmode;
-                            return format('NOT%s %s', SIZES[size], this.getEAFromInstruction(instruction, size));
+                            sz = opmode;
+                            return format('NOT%s %s', SIZES[sz], this.getEAFromInstruction(instruction, sz));
                     }
                     break;
 
@@ -347,8 +358,8 @@ m68000dasm.prototype.disassemble = function (address) {
                             // intentional fall-through
                         case 0x02:
                             // TST: Test an Operand; Destination Tested → Condition Codes (p.296)
-                            size = opmode;
-                            return format('TST%s %s', SIZES[size], this.getEAFromInstruction(instruction));
+                            sz = opmode;
+                            return format('TST%s %s', SIZES[sz], this.getEAFromInstruction(instruction));
                         case 0x03:
                             if (mode == 0x07 && ry == 0x04) {
                                 // ILLEGAL: Take Illegal Instruction Trap (p.211)
@@ -406,12 +417,12 @@ m68000dasm.prototype.disassemble = function (address) {
             if ((rx == 0x04 || rx == 0x06) && (opmode == 0x02 || opmode == 0x03)) {
                 // MOVEM: Move Multiple Registers (p.233)
                 dr = (instruction >> 10) & 0x01; // 0: reg to mem; 1: mem to reg
-                size = (instruction >> 6) & 0x01; // 0: word; 1: long
+                sz = (instruction >> 6) & 0x01; // 0: word; 1: long
                 data = this.registerMaskToStr(this.getImmediateData(SIZE_WORD), dr);
                 if (dr == 0x00) {
-                    return format('MOVEM.%s %s,%s', size?'L':'W', data, this.getEAFromInstruction(instruction));
+                    return format('MOVEM.%s %s,%s', sz?'L':'W', data, this.getEAFromInstruction(instruction));
                 } else {
-                    return format('MOVEM.%s %s,%s', size?'L':'W', this.getEAFromInstruction(instruction), data);
+                    return format('MOVEM.%s %s,%s', sz?'L':'W', this.getEAFromInstruction(instruction), data);
                 }
             }
             switch (opmode) {
@@ -419,12 +430,11 @@ m68000dasm.prototype.disassemble = function (address) {
                     // LEA: Load Effective Address (p.214)
                     return format('LEA %s,A%d', this.getEAFromInstruction(instruction), rx);
                 default:
-                    bit = (instruction >> 6) & 0x01;
-                    size = (instruction >> 7) & 0x03;
-                    if (bit == 0x00) {
+                    data = (instruction >> 6) & 0x01;
+                    sz = (instruction >> 7) & 0x03;
+                    if (data == 0x00 && sz == 3) {
                         // CHK: Check Register Against Bounds; If Dn < 0 or Dn > Source Then TRAP (p.173)
-                        // Note: in this case 0x03 means Word! Long is not supported in 68000.
-                        if (size != 0x03) throw Error('CHK: Unsupported size: ' + size);
+                        // Note: in this case size == 0x03 means Word! Long is not supported in 68000.
                         return format('CHK %s,D%d', this.getEAFromInstruction(instruction, SIZE_WORD), rx);
                     }
             }
@@ -436,23 +446,23 @@ m68000dasm.prototype.disassemble = function (address) {
             // DBcc: 0101 cond 11 001 reg - cond = 0000..1111
             // Scc : 0101 cond 11 mod reg - cond = 0000..1111
             // SUBQ: 0101 dat 1sz mod reg - sz = 00|01|10
-            size = opmode & 0x03;
+            sz = opmode & 0x03;
             data = rx;
-            if (size < 0x03) {
+            if (sz < 0x03) {
                 if (opmode < 0x04) {
                     // ADDQ: Add Quick; Immediate Data + Destination → Destination (p.115)
-                    return format('ADDQ%s #%d,%s', SIZES[size], data, this.getEAFromInstruction(instruction, size));
+                    return format('ADDQ%s #%d,%s', SIZES[sz], data, this.getEAFromInstruction(instruction, sz));
                 } else {
                     // SUBQ: Subtract Quick; Destination – Immediate Data → Destination (p.285)
-                    return format('SUBQ%s #%d,%s', SIZES[size], data, this.getEAFromInstruction(instruction, size));
+                    return format('SUBQ%s #%d,%s', SIZES[sz], data, this.getEAFromInstruction(instruction, sz));
                 }
             } else {
                 cc = (instruction >> 8) & 0x0F;
                 if (mode == 0x01) {
                     // DBcc: Test Condition, Decrement, and Branch;
                     // If Condition False Then (Dn – 1 → Dn; If Dn != – 1 Then PC + dn → PC) (p.194)
-                    disp = this.getImmediateData(SIZE_WORD);
-                    return format('DB%s D%d,*%s%d', CONDITIONS[cc], ry, (disp >= 0)?'+':'', disp);
+                    data = this.getImmediateData(SIZE_WORD);
+                    return format('DB%s D%d,*%s%d', CONDITIONS[cc], ry, (data >= 0)?'+':'', data);
                 } else {
                     //Scc: Set According to Condition; If Condition True Then 1s → Dest. Else 0s → Destination (p.276)
                     return format('S%s %s', CONDITIONS[cc], this.getEAFromInstruction(instruction));
@@ -463,22 +473,22 @@ m68000dasm.prototype.disassemble = function (address) {
         // 0110 Bcc/BSR/BRA
         case 0x06:
             cc = (instruction >> 8) & 0x0F;
-            disp = instruction & 0xFF;
-            if (disp == 0x00) {
-                disp = this.getImmediateData(SIZE_WORD);
-            } else if (disp >= 0x80) {
-                disp|= 0xFFFFFF00; // convert byte to signed int (sign extension)
+            data = instruction & 0xFF;
+            if (data == 0x00) {
+                data = this.getImmediateData(SIZE_WORD);
+            } else if (data >= 0x80) {
+                data|= 0xFFFFFF00; // sign extension
             }
             switch (cc) {
                 case 0:
                     // BRA: Branch Always: PC + dn → PC (p.159)
-                    return format('BRA *%s%d', (disp >= 0)?'+':'', disp);
+                    return format('BRA *%s%d', (data >= 0)?'+':'', data);
                 case 1:
                     // BSR: Branch to Soubroutine; SP-4 → SP; PC → (SP); PC + dn → PC (p.163)
-                    return format('BSR *%s%d', (disp >= 0)?'+':'', disp);
+                    return format('BSR *%s%d', (data >= 0)?'+':'', data);
                 default:
                     // Bcc: Branch Conditionally; If Condition True Then PC + dn → PC (p.129)
-                    return format('B%s *%s%d', CONDITIONS[cc], (disp >= 0)?'+':'', disp);
+                    return format('B%s *%s%d', CONDITIONS[cc], (data >= 0)?'+':'', data);
             }
             break;
 
@@ -488,7 +498,7 @@ m68000dasm.prototype.disassemble = function (address) {
             if (((instruction >> 8) & 0x01) == 0x0) {
                 data = instruction & 0xFF;
                 if (data >= 0x80) {
-                    data|= 0xFFFFFF00;
+                    data|= 0xFFFFFF00 // sign extension;
                 }
                 rx = (instruction >> 9) & 0x07;
                 return format('MOVEQ #%d,D%d', data, rx);
@@ -523,11 +533,11 @@ m68000dasm.prototype.disassemble = function (address) {
                     return format('DIVS.W %s,D%d', this.getEAFromInstruction(instruction, SIZE_LONG), rx);
             }
             // OR: Inclusive-OR Logical; Source V Destination → Destination (p.254)
-            size = opmode & 0x03;
+            sz = opmode & 0x03;
             if (opmode < 0x04) {
-                return format('OR%s %s,D%d', SIZES[size], this.getEAFromInstruction(instruction, size), rx);
+                return format('OR%s %s,D%d', SIZES[sz], this.getEAFromInstruction(instruction, sz), rx);
             } else {
-                return format('OR%s D%d,%s', SIZES[size], rx, this.getEAFromInstruction(instruction, size));
+                return format('OR%s D%d,%s', SIZES[sz], rx, this.getEAFromInstruction(instruction, sz));
             }
             break;
 
@@ -536,27 +546,27 @@ m68000dasm.prototype.disassemble = function (address) {
             // SUB : 1001 reg opm mod reg - opm = 000|001|010|100|101|110
             // SUBA: 1001 reg opm mod reg - opm = 011|111
             // SUBX: 1001 reg 1sz 00r reg - sz = 00|01|10
-            size = opmode & 0x03;
-            if (mode <= 0x01 && opmode >= 0x04 && opmode < 0x07 && size <= 0x02) {
+            sz = opmode & 0x03;
+            if (mode <= 0x01 && opmode >= 0x04 && opmode < 0x07 && sz <= 0x02) {
                 // SUBX: Subtract with Extend; Destination – Source – X → Destination (p.287)
                 switch (mode) {
                     case 0x00:
-                        return format('SUBX%s D%d,D%d', SIZES[size], ry, rx);
+                        return format('SUBX%s D%d,D%d', SIZES[sz], ry, rx);
                     case 0x01:
-                        return format('SUBX%s A%d,A%d', SIZES[size], ry, rx);
+                        return format('SUBX%s A%d,A%d', SIZES[sz], ry, rx);
                 }
             }
-            if (size < 0x03) {
+            if (sz < 0x03) {
                 // SUB: Substact; Destination – Source → Destination (p.278)
                 if (opmode < 0x04) {
-                    return format('SUB%s %s,D%d', SIZES[size], this.getEAFromInstruction(instruction, size), rx);
+                    return format('SUB%s %s,D%d', SIZES[sz], this.getEAFromInstruction(instruction, sz), rx);
                 } else {
-                    return format('SUB%s D%d,%s', SIZES[size], rx, this.getEAFromInstruction(instruction, size));
+                    return format('SUB%s D%d,%s', SIZES[sz], rx, this.getEAFromInstruction(instruction, sz));
                 }
             } else {
                 // SUBA: Substact; Destination – Source → Destination (p.281)
-                size = (opmode < 0x04) ? SIZE_WORD : SIZE_LONG;
-                return format('SUBA%s %s,D%d', SIZES[size], this.getEAFromInstruction(instruction, size), rx);
+                sz = (opmode < 0x04) ? SIZE_WORD : SIZE_LONG;
+                return format('SUBA%s %s,D%d', SIZES[sz], this.getEAFromInstruction(instruction, sz), rx);
             }
             break;
 
@@ -579,12 +589,12 @@ m68000dasm.prototype.disassemble = function (address) {
                     // intentional fall-through
                 case 0x02:
                     // CMP: Compare; Destination – Source → cc (p.179)
-                    size = opmode;
-                    return format('CMP%s %s,D%d', SIZES[size], this.getEAFromInstruction(instruction, size), rx);
+                    sz = opmode;
+                    return format('CMP%s %s,D%d', SIZES[sz], this.getEAFromInstruction(instruction, sz), rx);
                 case 0x03:
                     // CMPA: Compare; Destination – Source → cc (p.181)
-                    size = SIZE_WORD;
-                    return format('CMPA%s %s,D%d', SIZES[size], this.getEAFromInstruction(instruction, size), rx);
+                    sz = SIZE_WORD;
+                    return format('CMPA%s %s,D%d', SIZES[sz], this.getEAFromInstruction(instruction, sz), rx);
                 case 0x04:
                     // intentional fall-through
                 case 0x05:
@@ -592,18 +602,18 @@ m68000dasm.prototype.disassemble = function (address) {
                 case 0x06:
                     mode = (instruction >> 3) & 0x07;
                     ry = instruction & 0x07;
-                    size = opmode & 0x03;
+                    sz = opmode & 0x03;
                     if (mode == 0x01) {
                         // CMPM: Compare Memory; Destination – Source → cc (p.185)
-                        return format('CMPM%s (A%d)+,(A%d)+', SIZES[size], ry, rx);
+                        return format('CMPM%s (A%d)+,(A%d)+', SIZES[sz], ry, rx);
                     } else {
                         // EOR: Exclusive-OR Logical; Source ⊕ Destination → Destination (p.204)
-                        return format('EOR%s D%d,%s', SIZES[size], rx, this.getEAFromInstruction(instruction, size));
+                        return format('EOR%s D%d,%s', SIZES[sz], rx, this.getEAFromInstruction(instruction, sz));
                     }
                 case 0x07:
                     // CMPA: Compare; Destination – Source → cc (p.181)
-                    size = SIZE_LONG;
-                    return format('CMPA%s %s,D%d', SIZES[size], this.getEAFromInstruction(instruction, size), rx);
+                    sz = SIZE_LONG;
+                    return format('CMPA%s %s,D%d', SIZES[sz], this.getEAFromInstruction(instruction, sz), rx);
             }
             break;
 
@@ -648,11 +658,11 @@ m68000dasm.prototype.disassemble = function (address) {
                     return format('MULS.W %s,D%d', this.getEAFromInstruction(instruction, SIZE_WORD), rx);
             }
             // AND: AND Logical; Source Λ Destination → Destination (p.119)
-            size = opmode & 0x03;
+            sz = opmode & 0x03;
             if (opmode < 0x04) {
-                return format('AND%s %s,D%d', SIZES[size], this.getEAFromInstruction(instruction, size), rx);
+                return format('AND%s %s,D%d', SIZES[sz], this.getEAFromInstruction(instruction, sz), rx);
             } else {
-                return format('AND%s D%d,%s', SIZES[size], rx, this.getEAFromInstruction(instruction, size));
+                return format('AND%s D%d,%s', SIZES[sz], rx, this.getEAFromInstruction(instruction, sz));
             }
             break;
 
@@ -660,29 +670,29 @@ m68000dasm.prototype.disassemble = function (address) {
         case 0x0D:
             rx = (instruction >> 9) & 0x07;
             opmode = (instruction >> 6) & 0x07;
-            size = opmode & 0x3;
+            sz = opmode & 0x3;
             mode = (instruction >> 3) & 0x7;
-            if (size < 3) {
+            if (sz < 3) {
                 if (opmode < 4) {
                     // ADD: Add; Source + Destination → Destination; <ea> + Dn → Dn (p.108)
-                    return format('ADD%s %s,D%d', SIZES[size], this.getEAFromInstruction(instruction, size), rx);
+                    return format('ADD%s %s,D%d', SIZES[sz], this.getEAFromInstruction(instruction, sz), rx);
                 } else {
                     ry = instruction & 0x7;
                     switch (mode) {
                         case 0:
                             // ADDX: Add Extended; Source + Destination + X → Destination (p.117)
-                            return format('ADDX%s D%d,D%d', SIZES[size], ry, rx);
+                            return format('ADDX%s D%d,D%d', SIZES[sz], ry, rx);
                         case 1:
                             // ADDX: Add Extended; Source + Destination + X → Destination (p.117)
-                            return format('ADDX%s -(A%d),-(A%d)', SIZES[size], ry, rx);
+                            return format('ADDX%s -(A%d),-(A%d)', SIZES[sz], ry, rx);
                         default:
                             // ADD: Add; Source + Destination → Destination; Dn + <ea> → <ea> (p.108)
-                            return format('ADD%s D%d,%s', SIZES[size], rx, this.getEAFromInstruction(instruction, size));
+                            return format('ADD%s D%d,%s', SIZES[sz], rx, this.getEAFromInstruction(instruction, sz));
                     }
                 }
             } else {
                 // ADDA: Add Address; Source + Destination → Destination (p.111)
-                return format('ADDA.%s %s,A%d', (opmode == 3)?'W':'L', this.getEAFromInstruction(instruction, size), rx);
+                return format('ADDA.%s %s,A%d', (opmode == 3)?'W':'L', this.getEAFromInstruction(instruction, sz), rx);
             }
             break;
 
@@ -696,10 +706,10 @@ m68000dasm.prototype.disassemble = function (address) {
             // LSL/R Mem : 1110 001 d11 mod reg
             // ROXL/R Mem: 1110 010 d11 mod reg
             // ROL/R Mem : 1110 011 d11 mod reg
-            size = opmode & 0x03;
+            sz = opmode & 0x03;
             dr = (instruction >> 8) & 0x01;
-            bit = (instruction >> 5) & 0x1;
-            if (size == 0x03) {
+            data = (instruction >> 5) & 0x1;
+            if (sz == 0x03) {
                 switch (rx) {
                     case 0x00:
                         // ASL, ASR: Arithmetic Shift (memory shifts);
@@ -723,27 +733,27 @@ m68000dasm.prototype.disassemble = function (address) {
                     case 0x00:
                         // ASL, ASR: Arithmetic Shift (register shifts);
                         // Destination Shifted By Count → Destination (p.125)
-                        return (bit == 0x00)
-                            ? format('AS%s%s #%d,D%d', dr?'L':'R', SIZES[size], rx, ry)
-                            : format('AS%s%s D%d,D%d', dr?'L':'R', SIZES[size], rx, ry);
+                        return (data == 0x00)
+                            ? format('AS%s%s #%d,D%d', dr?'L':'R', SIZES[sz], rx, ry)
+                            : format('AS%s%s D%d,D%d', dr?'L':'R', SIZES[sz], rx, ry);
                     case 0x01:
                         // LSL, LSR: Logical Shift (register shifts);
                         // Destination Shifted By Count → Destination (p.217)
-                        return (bit == 0x00)
-                            ? format('LS%s%s #%d,D%d', dr?'L':'R', SIZES[size], rx, ry)
-                            : format('LS%s%s D%d,D%d', dr?'L':'R', SIZES[size], rx, ry);
+                        return (data == 0x00)
+                            ? format('LS%s%s #%d,D%d', dr?'L':'R', SIZES[sz], rx, ry)
+                            : format('LS%s%s D%d,D%d', dr?'L':'R', SIZES[sz], rx, ry);
                     case 0x02:
                         // ROXL, ROXR; Rotate with Extend (register shifts);
                         // Destination Rotated By < count > → Destination (p.268)
-                        return (bit == 0x00)
-                            ? format('ROX%s%s #%d,D%d', dr?'L':'R', SIZES[size], rx, ry)
-                            : format('ROX%s%s D%d,D%d', dr?'L':'R', SIZES[size], rx, ry);
+                        return (data == 0x00)
+                            ? format('ROX%s%s #%d,D%d', dr?'L':'R', SIZES[sz], rx, ry)
+                            : format('ROX%s%s D%d,D%d', dr?'L':'R', SIZES[sz], rx, ry);
                     case 0x03:
                         // ROL, ROR; Rotate (Without Extend) (register shifts);
                         // Destination Rotated By < count > → Destination (p.264)
-                        return (bit == 0x00)
-                            ? format('RO%s%s #%d,D%d', dr?'L':'R', SIZES[size], rx, ry)
-                            : format('RO%s%s D%d,D%d', dr?'L':'R', SIZES[size], rx, ry);
+                        return (data == 0x00)
+                            ? format('RO%s%s #%d,D%d', dr?'L':'R', SIZES[sz], rx, ry)
+                            : format('RO%s%s D%d,D%d', dr?'L':'R', SIZES[sz], rx, ry);
                 }
             }
             break;
