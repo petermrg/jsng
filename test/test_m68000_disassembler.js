@@ -1138,6 +1138,14 @@ describe('m68000', function () {
             assert.equal(dasm.disassemble(3), 'MOVE D5,SR');
         });
 
+        it('disassembles MOVE USP', function() {
+            dasm.memory.setInt16(3, bin('0100111001100 101'));
+            assert.equal(dasm.disassemble(3), 'MOVE A5,USP');
+
+            dasm.memory.setInt16(3, bin('0100111001101 101'));
+            assert.equal(dasm.disassemble(3), 'MOVE USP,A5');
+        });
+
     });
 
 });

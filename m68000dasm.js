@@ -198,7 +198,7 @@ m68000dasm.prototype.disassemble = function (address) {
                     break;
             }
             // rest of cases
-            if (((instruction >> 8) & 1) == 0x01 && mode == 0x01) {
+            if (opmode >= 0x04 && mode == 0x01) {
                 // MOVEP: Move Peripheral Data; Source → Destination (p.235)
                 data = this.getImmediateData(SIZE_WORD);
                 if (opmode & 0x02) {
@@ -226,20 +226,20 @@ m68000dasm.prototype.disassemble = function (address) {
 
         // 0001 Move Byte
         case 0x01:
-            data = this.getEAFromModeAndReg(mode, rx);
             // MOVE: Move Data from Source to Destination; Source → Destination (p.220)
+            data = this.getEAFromModeAndReg(mode, rx);
             return format('MOVE %s,%s', this.getEAFromInstruction(instruction, SIZE_BYTE), data);
             break;
 
         // 0010 Move Long
         case 0x02:
-            data = this.getEAFromModeAndReg(opmode, rx);
             switch (opmode) {
                 case 0x01:
                     // MOVEA: Move Address; Source → Destination (p.223)
                     return format('MOVE.L %s,A%d', this.getEAFromInstruction(instruction, SIZE_LONG), rx);
                 default:
                     // MOVE: Move Data from Source to Destination; Source → Destination (p.220)
+                    data = this.getEAFromModeAndReg(opmode, rx);
                     return format('MOVE.L %s,%s', this.getEAFromInstruction(instruction, SIZE_LONG), data);
                 break;
             }
@@ -247,13 +247,13 @@ m68000dasm.prototype.disassemble = function (address) {
 
         // 0011 Move Word
         case 0x03:
-            data = this.getEAFromModeAndReg(opmode, rx);
             switch (opmode) {
                 case 0x01:
                     // MOVEA: Move Address; Source → Destination (p.223)
                     return format('MOVE.W %s,A%d', this.getEAFromInstruction(instruction, SIZE_LONG), rx);
                 default:
                     // MOVE: Move Data from Source to Destination; Source → Destination (p.220)
+                    data = this.getEAFromModeAndReg(opmode, rx);
                     return format('MOVE.W %s,%s', this.getEAFromInstruction(instruction, SIZE_LONG), data);
                 break;
             }
@@ -280,6 +280,7 @@ m68000dasm.prototype.disassemble = function (address) {
             // TRAP       : 0100 111 001 00 vect
             // LINK       : 0100 111 001 010 reg
             // UNLK       : 0100 111 001 011 reg
+            // MOVE USP   : 0100 111 001 10d reg
             // NOP        : 0100 111 001 110 001
             // RTS        : 0100 111 001 110 101
             // TRAPV      : 0100 111 001 110 110
@@ -415,6 +416,12 @@ m68000dasm.prototype.disassemble = function (address) {
                                 case 0x03:
                                     // UNLK: Unlink; An → SP; (SP) → An; SP + 4 → SP (p.298)
                                     return format('UNLK A%d', ry);
+                                case 0x04:
+                                    // MOVE USP: Move User Stack Pointer;
+                                    // If Supervisor State Then USP → An or An → USP Else TRAP (p.475)
+                                    return format('MOVE A%d,USP', ry);
+                                case 0x05:
+                                    return format('MOVE USP,A%d', ry);
                                 case 0x06:
                                     switch (ry) {
                                         case 0x01:

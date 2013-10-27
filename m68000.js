@@ -159,7 +159,7 @@ UB                Upper Bound
 *AND
 *ANDI
 *ANDI to CCR
-ANDI to SR
+*ANDI to SR
 *ASL,ASR
 *Bcc
 *BCHG
@@ -180,7 +180,7 @@ ANDI to SR
 *EOR
 *EORI
 *EORI to CCR
-EORI to SR
+*EORI to SR
 *EXG
 *EXT
 *ILLEGAL
@@ -193,7 +193,7 @@ EORI to SR
 *MOVEA
 *MOVE to CCR
 *MOVE from SR
-MOVE to SR
+*MOVE to SR
 MOVE USP
 *MOVEM
 *MOVEP
