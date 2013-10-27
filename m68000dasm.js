@@ -283,6 +283,7 @@ m68000dasm.prototype.disassemble = function (address) {
             // MOVE USP   : 0100 111 001 10d reg
             // RESET      : 0100 111 001 110 000
             // NOP        : 0100 111 001 110 001
+            // RTE        : 0100 111 001 110 011
             // RTS        : 0100 111 001 110 101
             // TRAPV      : 0100 111 001 110 110
             // RTR        : 0100 111 001 110 111
@@ -290,7 +291,6 @@ m68000dasm.prototype.disassemble = function (address) {
             // JMP        : 0100 111 011 mod reg
             // LEA        : 0100 reg 111 mod reg
             // CHK        : 0100 reg sz0 mod reg - sz = 11|10
-            // RTE 538
             switch (rx) {
                 case 0x00:
                     switch (opmode) {
@@ -433,6 +433,11 @@ m68000dasm.prototype.disassemble = function (address) {
                                         case 0x01:
                                             // NOP: No Operation; (p.251)
                                             return format('NOP');
+                                        case 0x03:
+                                            // RTE: Return from Exception
+                                            // If Supervisor State Then (SP) → SR; SP + 2 → SP; (SP) → PC; SP + 4 → SP;
+                                            // Restore State and Deallocate Stack According to (SP) Else TRAP (p.538)
+                                            return format('RTE');
                                         case 0x05:
                                             // RTS: Return from Subroutine; (SP) → PC; SP + 4 → SP (p.273)
                                             return format('RTS');
