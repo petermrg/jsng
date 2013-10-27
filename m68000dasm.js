@@ -21,22 +21,22 @@ m68000dasm = function(memory) {
 /**
  * Dissasemble instruction at address. If no address is given, it uses the internal pointer.
  *
+ * Common instruction parts:
+ *                                ┌─────────────────┐
+ *                                │effective address│
+ *  ┌───────────┬────────┬────────┼────────┬────────┤
+ *  │  opcode   │   rx   │ opmode │  mode  │   ry   │
+ *  ├───────────┼────────┼────────┼────────┼────────┤
+ * 15          12        9        6        3        0
+ *
  * @param  {integer} address (Optional)
  * @return {string}  Assembler syntax
  */
 m68000dasm.prototype.disassemble = function (address) {
-    this.pointer = (arguments.length == 1) ? address : this.pointer;
+    if (arguments.length == 1) this.pointer = address;
     var instruction = this.memory.getUint16(this.pointer);
     this.pointer+= 2;
 
-    // Common instruction parts:
-    //                               ┌─────────────────┐
-    //                               │effective address│
-    // ┌──┬──┬──┬──┬──┬──┬──┬──┬──┬──┼──┬──┬──┬──┬──┬──┤
-    // │  opcode   │   rx   │ opmode │  mode  │   ry   │
-    // └──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴──┘
-    // 15          12       9        6        3        0
-    //
     var opcode = (instruction >> 12) & 0x0F,
         rx = (instruction >> 9) & 0x07,
         opmode = (instruction >> 6) & 0x07,
@@ -45,8 +45,8 @@ m68000dasm.prototype.disassemble = function (address) {
 
     var dr, // direction
         sz, // size
-        data,
-        cc; // condition code
+        cc, // condition code
+        data;
 
     switch (opcode) {
 
@@ -95,7 +95,7 @@ m68000dasm.prototype.disassemble = function (address) {
                             // ORI: Inclusive-OR; Immediate Data V Destination → Destination (p.257)
                             sz = opmode;
                             data = this.getImmediateData(sz);
-                            return format('ORI%s #%d,%s', SIZES[sz], data, this.getEAFromInstruction(instruction, sz));
+                            return format('ORI%s #%d,%s', SIZES[sz], data, this.getEffectiveAddress(mode, ry, sz));
                     }
                     break;
 
@@ -120,7 +120,7 @@ m68000dasm.prototype.disassemble = function (address) {
                             // ANDI: AND Immediate: Immediate Data Λ Destination → Destination (p.122)
                             sz = opmode;
                             data = this.getImmediateData(sz);
-                            return format('ANDI%s #%d,%s', SIZES[sz], data, this.getEAFromInstruction(instruction, sz));
+                            return format('ANDI%s #%d,%s', SIZES[sz], data, this.getEffectiveAddress(mode, ry, sz));
                     }
                     break;
 
@@ -129,7 +129,7 @@ m68000dasm.prototype.disassemble = function (address) {
                         // SUBI: Subtract Immediate: Destination – Immediate Data → Destination (p.283)
                         sz = opmode;
                         data = this.getImmediateData(sz);
-                        return format('SUBI%s #%d,%s', SIZES[sz], data, this.getEAFromInstruction(instruction, sz));
+                        return format('SUBI%s #%d,%s', SIZES[sz], data, this.getEffectiveAddress(mode, ry, sz));
                     }
                     break;
 
@@ -138,7 +138,7 @@ m68000dasm.prototype.disassemble = function (address) {
                         // ADDI: Add Immediate; Immediate Data + Destination → Destination (p.113)
                         sz = opmode;
                         data = this.getImmediateData(sz);
-                        return format('ADDI%s #%d,%s', SIZES[sz], data, this.getEAFromInstruction(instruction, sz));
+                        return format('ADDI%s #%d,%s', SIZES[sz], data, this.getEffectiveAddress(mode, ry, sz));
                     }
                     break;
 
@@ -147,19 +147,19 @@ m68000dasm.prototype.disassemble = function (address) {
                         case 0x00:
                             // BTST: Test a Bit; bit number static, specified as immediate data (p.166)
                             data = this.getImmediateData(SIZE_WORD) % 32;
-                            return format('BTST #%d,%s', data, this.getEAFromInstruction(instruction, SIZE_BYTE));
+                            return format('BTST #%d,%s', data, this.getEffectiveAddress(mode, ry, SIZE_BYTE));
                         case 0x01:
                             // BCHG: Test a Bit and Change; bit number static, specified as immediate data (p.133)
                             data = this.getImmediateData(SIZE_WORD) % 32;
-                            return format('BCHG #%d,%s', data, this.getEAFromInstruction(instruction, SIZE_BYTE));
+                            return format('BCHG #%d,%s', data, this.getEffectiveAddress(mode, ry, SIZE_BYTE));
                         case 0x02:
                             // BCLR: Test a Bit and clear; bit number static, specified as immediate data (p.135)
                             data = this.getImmediateData(SIZE_WORD) % 32;
-                            return format('BCLR #%d,%s', data, this.getEAFromInstruction(instruction, SIZE_BYTE));
+                            return format('BCLR #%d,%s', data, this.getEffectiveAddress(mode, ry, SIZE_BYTE));
                         case 0x03:
                             // BSET: Test Bit and Set; bit number static, specified as immediate data (p.161)
                             data = this.getImmediateData(SIZE_WORD) % 32;
-                            return format('BSET #%d,%s', data, this.getEAFromInstruction(instruction, SIZE_BYTE));
+                            return format('BSET #%d,%s', data, this.getEffectiveAddress(mode, ry, SIZE_BYTE));
                     }
                     break;
 
@@ -184,7 +184,7 @@ m68000dasm.prototype.disassemble = function (address) {
                             // EORI: Exclusive-OR Immediate; Immediate Data ⊕ Destination → Destination (p.206)
                             sz = opmode;
                             data = this.getImmediateData(sz);
-                            return format('EORI%s #%d,%s', SIZES[sz], data, this.getEAFromInstruction(instruction, sz));
+                            return format('EORI%s #%d,%s', SIZES[sz], data, this.getEffectiveAddress(mode, ry, sz));
                     }
                     break;
 
@@ -193,7 +193,7 @@ m68000dasm.prototype.disassemble = function (address) {
                         // CMPI: Compare Immediate: Destination - Immediate Data → cc (p.183)
                         sz = (instruction >> 6) & 0x03;
                         data = this.getImmediateData(sz);
-                        return format('CMPI%s #%d,%s', SIZES[sz], data, this.getEAFromInstruction(instruction, sz));
+                        return format('CMPI%s #%d,%s', SIZES[sz], data, this.getEffectiveAddress(mode, ry, sz));
                     }
                     break;
             }
@@ -211,24 +211,24 @@ m68000dasm.prototype.disassemble = function (address) {
             switch (opmode) {
                 case 0x04:
                     // BTST: Test Bit; bit number dynamic, specified in a register (p.167)
-                    return format('BTST D%d,%s', rx, this.getEAFromInstruction(instruction, SIZE_BYTE));
+                    return format('BTST D%d,%s', rx, this.getEffectiveAddress(mode, ry, SIZE_BYTE));
                 case 0x05:
                     // BCHG: Test Bit and Set; bit number dynamic, specified in a register (p.133)
-                    return format('BCHG D%d,%s', rx, this.getEAFromInstruction(instruction, SIZE_BYTE));
+                    return format('BCHG D%d,%s', rx, this.getEffectiveAddress(mode, ry, SIZE_BYTE));
                 case 0x06:
                     // BCLR: Test Bit and Clear; bit number dynamic, specified in a register (p.135)
-                    return format('BCLR D%d,%s', rx, this.getEAFromInstruction(instruction, SIZE_BYTE));
+                    return format('BCLR D%d,%s', rx, this.getEffectiveAddress(mode, ry, SIZE_BYTE));
                 case 0x07:
                     // BSET: Test Bit and Set; bit number dynamic, specified in a register (p.162)
-                    return format('BSET D%d,%s', rx, this.getEAFromInstruction(instruction, SIZE_BYTE));
+                    return format('BSET D%d,%s', rx, this.getEffectiveAddress(mode, ry, SIZE_BYTE));
             }
             break;
 
         // 0001 Move Byte
         case 0x01:
             // MOVE: Move Data from Source to Destination; Source → Destination (p.220)
-            data = this.getEAFromModeAndReg(mode, rx);
-            return format('MOVE %s,%s', this.getEAFromInstruction(instruction, SIZE_BYTE), data);
+            data = this.getEffectiveAddress(mode, rx);
+            return format('MOVE %s,%s', this.getEffectiveAddress(mode, ry, SIZE_BYTE), data);
             break;
 
         // 0010 Move Long
@@ -236,11 +236,11 @@ m68000dasm.prototype.disassemble = function (address) {
             switch (opmode) {
                 case 0x01:
                     // MOVEA: Move Address; Source → Destination (p.223)
-                    return format('MOVE.L %s,A%d', this.getEAFromInstruction(instruction, SIZE_LONG), rx);
+                    return format('MOVE.L %s,A%d', this.getEffectiveAddress(mode, ry, SIZE_LONG), rx);
                 default:
                     // MOVE: Move Data from Source to Destination; Source → Destination (p.220)
-                    data = this.getEAFromModeAndReg(opmode, rx);
-                    return format('MOVE.L %s,%s', this.getEAFromInstruction(instruction, SIZE_LONG), data);
+                    data = this.getEffectiveAddress(opmode, rx);
+                    return format('MOVE.L %s,%s', this.getEffectiveAddress(mode, ry, SIZE_LONG), data);
                 break;
             }
             break;
@@ -250,11 +250,11 @@ m68000dasm.prototype.disassemble = function (address) {
             switch (opmode) {
                 case 0x01:
                     // MOVEA: Move Address; Source → Destination (p.223)
-                    return format('MOVE.W %s,A%d', this.getEAFromInstruction(instruction, SIZE_LONG), rx);
+                    return format('MOVE.W %s,A%d', this.getEffectiveAddress(mode, ry, SIZE_LONG), rx);
                 default:
                     // MOVE: Move Data from Source to Destination; Source → Destination (p.220)
-                    data = this.getEAFromModeAndReg(opmode, rx);
-                    return format('MOVE.W %s,%s', this.getEAFromInstruction(instruction, SIZE_LONG), data);
+                    data = this.getEffectiveAddress(opmode, rx);
+                    return format('MOVE.W %s,%s', this.getEffectiveAddress(mode, ry, SIZE_LONG), data);
                 break;
             }
             break;
@@ -262,8 +262,8 @@ m68000dasm.prototype.disassemble = function (address) {
         // 0100 Miscellaneous
         case 0x04:
             // NEGX       : 0100 000 0sz mod reg - sz = 00|01|10
-            // CLR        : 0100 001 0sz mod reg - sz = 00|01|10
             // MOVEfromSR : 0100 000 011 mod reg
+            // CLR        : 0100 001 0sz mod reg - sz = 00|01|10
             // MOVEfromCCR: 0100 001 011 mod reg
             // NEG        : 0100 010 0sz mod reg - sz = 00|01|10
             // MOVEtoCCR  : 0100 010 011 mod reg
@@ -302,10 +302,10 @@ m68000dasm.prototype.disassemble = function (address) {
                         case 0x02:
                             // NEGX: Negate with Extend; 0 – Destination – X → Destination (p.249)
                             sz = opmode;
-                            return format('NEGX%s %s', SIZES[sz], this.getEAFromInstruction(instruction, sz));
+                            return format('NEGX%s %s', SIZES[sz], this.getEffectiveAddress(mode, ry, sz));
                         case 0x03:
                             // MOVE from SR: Move from the Status Register; SR → Destination (p.229)
-                            return format('MOVE SR,%s', this.getEAFromInstruction(instruction));
+                            return format('MOVE SR,%s', this.getEffectiveAddress(mode, ry));
                     }
                     break;
 
@@ -318,10 +318,10 @@ m68000dasm.prototype.disassemble = function (address) {
                         case 0x02:
                             // CLR: Clear an Operand; 0 → Destination (p.177)
                             sz = opmode;
-                            return format('CLR%s %s', SIZES[sz], this.getEAFromInstruction(instruction, sz));
+                            return format('CLR%s %s', SIZES[sz], this.getEffectiveAddress(mode, ry, sz));
                         case 0x03:
                             // MOVE from CCR: Move from the Condition Code Register; CCR → Destination (p.225)
-                            return format('MOVE CCR,%s', this.getEAFromInstruction(instruction));
+                            return format('MOVE CCR,%s', this.getEffectiveAddress(mode, ry));
                     }
                     break;
 
@@ -334,10 +334,10 @@ m68000dasm.prototype.disassemble = function (address) {
                         case 0x02:
                             // NEG: Negate; 0 – Destination → Destination (p.247)
                             sz = opmode;
-                            return format('NEG%s %s', SIZES[sz], this.getEAFromInstruction(instruction, sz));
+                            return format('NEG%s %s', SIZES[sz], this.getEffectiveAddress(mode, ry, sz));
                         case 0x03:
                             // MOVE to CCR: Move to Condition Code Register; Source → CCR (p.227)
-                            return format('MOVE %s,CCR', this.getEAFromInstruction(instruction));
+                            return format('MOVE %s,CCR', this.getEffectiveAddress(mode, ry));
                     }
                     break;
 
@@ -350,11 +350,11 @@ m68000dasm.prototype.disassemble = function (address) {
                         case 0x02:
                             // NEG: Negate; 0 – Destination → Destination (p.247)
                             sz = opmode;
-                            return format('NOT%s %s', SIZES[sz], this.getEAFromInstruction(instruction, sz));
+                            return format('NOT%s %s', SIZES[sz], this.getEffectiveAddress(mode, ry, sz));
                         case 0x03:
                             // MOVE to SR: Move to the Status Register;
                             // If Supervisor State Then Source → SR Else TRAP (p.473)
-                            return format('MOVE %s,SR', this.getEAFromInstruction(instruction, SIZE_WORD));
+                            return format('MOVE %s,SR', this.getEffectiveAddress(mode, ry, SIZE_WORD));
                     }
                     break;
 
@@ -362,14 +362,14 @@ m68000dasm.prototype.disassemble = function (address) {
                     switch (opmode) {
                         case 0x00:
                             // NBCD: Negate Decimal with Extend; 0 – Destination(Base10) – X → Destination (p.245)
-                            return format('NBCD %s', this.getEAFromInstruction(instruction));
+                            return format('NBCD %s', this.getEffectiveAddress(mode, ry));
                         case 0x01:
                             if (mode == 0x00) {
                                 // SWAP: Swap Register Halves; Register 31 – 16 ←→ Register 15 – 0 (p.289)
                                 return format('SWAP D%d', ry);
                             } else {
                                 // PEA: Push Effective Address; SP – 4 → SP; <ea> → (SP) (p.263)
-                                return format('PEA %s', this.getEAFromInstruction(instruction));
+                                return format('PEA %s', this.getEffectiveAddress(mode, ry));
                             }
                     }
                     // EXT: Sign-Extend; Destination Sign-Extended → Destination (p.210)
@@ -392,7 +392,7 @@ m68000dasm.prototype.disassemble = function (address) {
                         case 0x02:
                             // TST: Test an Operand; Destination Tested → Condition Codes (p.296)
                             sz = opmode;
-                            return format('TST%s %s', SIZES[sz], this.getEAFromInstruction(instruction));
+                            return format('TST%s %s', SIZES[sz], this.getEffectiveAddress(mode, ry));
                         case 0x03:
                             if (mode == 0x07 && ry == 0x04) {
                                 // ILLEGAL: Take Illegal Instruction Trap (p.211)
@@ -400,7 +400,7 @@ m68000dasm.prototype.disassemble = function (address) {
                             }
                             // TAS: Test and Set an Operand;
                             // Destination Tested → Condition Codes; 1 → Bit 7 of Destination (p.290)
-                            return format('TAS %s', this.getEAFromInstruction(instruction));
+                            return format('TAS %s', this.getEffectiveAddress(mode, ry));
                     }
                     break;
 
@@ -458,10 +458,10 @@ m68000dasm.prototype.disassemble = function (address) {
                             break;
                         case 0x02:
                             // JSR: Jump to Subroutine; SP – 4 → Sp; PC → (SP); Destination Address → PC (p.213)
-                            return format('JSR %s', this.getEAFromInstruction(instruction));
+                            return format('JSR %s', this.getEffectiveAddress(mode, ry));
                         case 0x03:
                             // JMP: Jump; Destination Address → PC (p.212)
-                            return format('JMP %s', this.getEAFromInstruction(instruction));
+                            return format('JMP %s', this.getEffectiveAddress(mode, ry));
                     }
                     break;
             }
@@ -472,22 +472,22 @@ m68000dasm.prototype.disassemble = function (address) {
                 sz = (instruction >> 6) & 0x01; // 0: word; 1: long
                 data = this.registerMaskToStr(this.getImmediateData(SIZE_WORD), dr);
                 if (dr == 0x00) {
-                    return format('MOVEM.%s %s,%s', sz?'L':'W', data, this.getEAFromInstruction(instruction));
+                    return format('MOVEM.%s %s,%s', sz?'L':'W', data, this.getEffectiveAddress(mode, ry));
                 } else {
-                    return format('MOVEM.%s %s,%s', sz?'L':'W', this.getEAFromInstruction(instruction), data);
+                    return format('MOVEM.%s %s,%s', sz?'L':'W', this.getEffectiveAddress(mode, ry), data);
                 }
             }
             switch (opmode) {
                 case 0x07:
                     // LEA: Load Effective Address (p.214)
-                    return format('LEA %s,A%d', this.getEAFromInstruction(instruction), rx);
+                    return format('LEA %s,A%d', this.getEffectiveAddress(mode, ry), rx);
                 default:
                     data = (instruction >> 6) & 0x01;
                     sz = (instruction >> 7) & 0x03;
                     if (data == 0x00 && sz == 3) {
                         // CHK: Check Register Against Bounds; If Dn < 0 or Dn > Source Then TRAP (p.173)
                         // Note: in this case size == 0x03 means Word! Long is not supported in 68000.
-                        return format('CHK %s,D%d', this.getEAFromInstruction(instruction, SIZE_WORD), rx);
+                        return format('CHK %s,D%d', this.getEffectiveAddress(mode, ry, SIZE_WORD), rx);
                     }
             }
             break;
@@ -495,18 +495,18 @@ m68000dasm.prototype.disassemble = function (address) {
         // 0101 ADDQ/SUBQ/Scc/DBcc/TRAPc c
         case 0x05:
             // ADDQ: 0101 dat 0sz mod reg - dat = 000..111; sz = 00..10
+            // SUBQ: 0101 dat 1sz mod reg - sz = 00|01|10
             // DBcc: 0101 cond 11 001 reg - cond = 0000..1111
             // Scc : 0101 cond 11 mod reg - cond = 0000..1111
-            // SUBQ: 0101 dat 1sz mod reg - sz = 00|01|10
             sz = opmode & 0x03;
             data = rx;
             if (sz < 0x03) {
                 if (opmode < 0x04) {
                     // ADDQ: Add Quick; Immediate Data + Destination → Destination (p.115)
-                    return format('ADDQ%s #%d,%s', SIZES[sz], data, this.getEAFromInstruction(instruction, sz));
+                    return format('ADDQ%s #%d,%s', SIZES[sz], data, this.getEffectiveAddress(mode, ry, sz));
                 } else {
                     // SUBQ: Subtract Quick; Destination – Immediate Data → Destination (p.285)
-                    return format('SUBQ%s #%d,%s', SIZES[sz], data, this.getEAFromInstruction(instruction, sz));
+                    return format('SUBQ%s #%d,%s', SIZES[sz], data, this.getEffectiveAddress(mode, ry, sz));
                 }
             } else {
                 cc = (instruction >> 8) & 0x0F;
@@ -517,7 +517,7 @@ m68000dasm.prototype.disassemble = function (address) {
                     return format('DB%s D%d,*%s%d', CONDITIONS[cc], ry, (data >= 0)?'+':'', data);
                 } else {
                     //Scc: Set According to Condition; If Condition True Then 1s → Dest. Else 0s → Destination (p.276)
-                    return format('S%s %s', CONDITIONS[cc], this.getEAFromInstruction(instruction));
+                    return format('S%s %s', CONDITIONS[cc], this.getEffectiveAddress(mode, ry));
                 }
             }
             break;
@@ -569,7 +569,7 @@ m68000dasm.prototype.disassemble = function (address) {
                 case 0x03:
                     // DIVU: Unsigned Divide; Destination ÷ Source → Destination (p.200)
                     // DIVU.W <ea> ,Dn32/16 → 16r – 16q
-                    return format('DIVU.W %s,D%d', this.getEAFromInstruction(instruction, SIZE_LONG), rx);
+                    return format('DIVU.W %s,D%d', this.getEffectiveAddress(mode, ry, SIZE_LONG), rx);
                 case 0x04:
                     // SBCD: Subtract Decimal with Extend; Destination10 – Source10 – X → Destination (p.274)
                     switch (mode) {
@@ -582,14 +582,14 @@ m68000dasm.prototype.disassemble = function (address) {
                 case 0x07:
                     // DIVS: Signed Divide; Destination ÷ Source → Destination (p.196)
                     // DIVS.W <ea> ,Dn32/16 → 16r – 16q
-                    return format('DIVS.W %s,D%d', this.getEAFromInstruction(instruction, SIZE_LONG), rx);
+                    return format('DIVS.W %s,D%d', this.getEffectiveAddress(mode, ry, SIZE_LONG), rx);
             }
             // OR: Inclusive-OR Logical; Source V Destination → Destination (p.254)
             sz = opmode & 0x03;
             if (opmode < 0x04) {
-                return format('OR%s %s,D%d', SIZES[sz], this.getEAFromInstruction(instruction, sz), rx);
+                return format('OR%s %s,D%d', SIZES[sz], this.getEffectiveAddress(mode, ry, sz), rx);
             } else {
-                return format('OR%s D%d,%s', SIZES[sz], rx, this.getEAFromInstruction(instruction, sz));
+                return format('OR%s D%d,%s', SIZES[sz], rx, this.getEffectiveAddress(mode, ry, sz));
             }
             break;
 
@@ -611,14 +611,14 @@ m68000dasm.prototype.disassemble = function (address) {
             if (sz < 0x03) {
                 // SUB: Substact; Destination – Source → Destination (p.278)
                 if (opmode < 0x04) {
-                    return format('SUB%s %s,D%d', SIZES[sz], this.getEAFromInstruction(instruction, sz), rx);
+                    return format('SUB%s %s,D%d', SIZES[sz], this.getEffectiveAddress(mode, ry, sz), rx);
                 } else {
-                    return format('SUB%s D%d,%s', SIZES[sz], rx, this.getEAFromInstruction(instruction, sz));
+                    return format('SUB%s D%d,%s', SIZES[sz], rx, this.getEffectiveAddress(mode, ry, sz));
                 }
             } else {
                 // SUBA: Substact; Destination – Source → Destination (p.281)
                 sz = (opmode < 0x04) ? SIZE_WORD : SIZE_LONG;
-                return format('SUBA%s %s,D%d', SIZES[sz], this.getEAFromInstruction(instruction, sz), rx);
+                return format('SUBA%s %s,D%d', SIZES[sz], this.getEffectiveAddress(mode, ry, sz), rx);
             }
             break;
 
@@ -630,8 +630,8 @@ m68000dasm.prototype.disassemble = function (address) {
         case 0x0B:
             // CMP : 1011 reg opm mod reg
             // CMPA: 1011 reg opm mod reg
-            // CMPM: 1011 reg 1sz 001 reg
             // EOR : 1011 reg opm mod reg - opm = 100|101|110
+            // CMPM: 1011 reg 1sz 001 reg
             rx = (instruction >> 9) & 0x07;
             opmode = (instruction >> 6) & 0x07;
             switch (opmode) {
@@ -642,11 +642,11 @@ m68000dasm.prototype.disassemble = function (address) {
                 case 0x02:
                     // CMP: Compare; Destination – Source → cc (p.179)
                     sz = opmode;
-                    return format('CMP%s %s,D%d', SIZES[sz], this.getEAFromInstruction(instruction, sz), rx);
+                    return format('CMP%s %s,D%d', SIZES[sz], this.getEffectiveAddress(mode, ry, sz), rx);
                 case 0x03:
                     // CMPA: Compare; Destination – Source → cc (p.181)
                     sz = SIZE_WORD;
-                    return format('CMPA%s %s,D%d', SIZES[sz], this.getEAFromInstruction(instruction, sz), rx);
+                    return format('CMPA%s %s,D%d', SIZES[sz], this.getEffectiveAddress(mode, ry, sz), rx);
                 case 0x04:
                     // intentional fall-through
                 case 0x05:
@@ -660,12 +660,12 @@ m68000dasm.prototype.disassemble = function (address) {
                         return format('CMPM%s (A%d)+,(A%d)+', SIZES[sz], ry, rx);
                     } else {
                         // EOR: Exclusive-OR Logical; Source ⊕ Destination → Destination (p.204)
-                        return format('EOR%s D%d,%s', SIZES[sz], rx, this.getEAFromInstruction(instruction, sz));
+                        return format('EOR%s D%d,%s', SIZES[sz], rx, this.getEffectiveAddress(mode, ry, sz));
                     }
                 case 0x07:
                     // CMPA: Compare; Destination – Source → cc (p.181)
                     sz = SIZE_LONG;
-                    return format('CMPA%s %s,D%d', SIZES[sz], this.getEAFromInstruction(instruction, sz), rx);
+                    return format('CMPA%s %s,D%d', SIZES[sz], this.getEffectiveAddress(mode, ry, sz), rx);
             }
             break;
 
@@ -674,12 +674,12 @@ m68000dasm.prototype.disassemble = function (address) {
             // ABCD: 1100 reg 100 00b reg
             // MULS: 1100 reg 111 mod reg
             // MULU: 1100 reg 011 mod reg
-            // EXG : 1100 reg 1op-mod reg - op-mod = 01000|01001|10001
+            // EXG : 1100 reg 1 opmod reg - opmod = 01000|01001|10001
             // AND : 1100 reg opm mod reg - opm = 000|001|010|110|101|110
             switch (opmode) {
                 case 0x03:
                     // MULU: Signed Multiply; Source x Destination → Destination (p.239)
-                    return format('MULU.W %s,D%d', this.getEAFromInstruction(instruction, SIZE_WORD), rx);
+                    return format('MULU.W %s,D%d', this.getEffectiveAddress(mode, ry, SIZE_WORD), rx);
                 case 0x04:
                     switch (mode) {
                         // ABCD: Add Decimal with Extend; Source10 + Destination10 + X → Destination (p.106)
@@ -708,14 +708,14 @@ m68000dasm.prototype.disassemble = function (address) {
                     break;
                 case 0x07:
                     // MULS: Signed Multiply; Source x Destination → Destination (p.239)
-                    return format('MULS.W %s,D%d', this.getEAFromInstruction(instruction, SIZE_WORD), rx);
+                    return format('MULS.W %s,D%d', this.getEffectiveAddress(mode, ry, SIZE_WORD), rx);
             }
             // AND: AND Logical; Source Λ Destination → Destination (p.119)
             sz = opmode & 0x03;
             if (opmode < 0x04) {
-                return format('AND%s %s,D%d', SIZES[sz], this.getEAFromInstruction(instruction, sz), rx);
+                return format('AND%s %s,D%d', SIZES[sz], this.getEffectiveAddress(mode, ry, sz), rx);
             } else {
-                return format('AND%s D%d,%s', SIZES[sz], rx, this.getEAFromInstruction(instruction, sz));
+                return format('AND%s D%d,%s', SIZES[sz], rx, this.getEffectiveAddress(mode, ry, sz));
             }
             break;
 
@@ -728,7 +728,7 @@ m68000dasm.prototype.disassemble = function (address) {
             if (sz < 3) {
                 if (opmode < 4) {
                     // ADD: Add; Source + Destination → Destination; <ea> + Dn → Dn (p.108)
-                    return format('ADD%s %s,D%d', SIZES[sz], this.getEAFromInstruction(instruction, sz), rx);
+                    return format('ADD%s %s,D%d', SIZES[sz], this.getEffectiveAddress(mode, ry, sz), rx);
                 } else {
                     ry = instruction & 0x7;
                     switch (mode) {
@@ -740,12 +740,12 @@ m68000dasm.prototype.disassemble = function (address) {
                             return format('ADDX%s -(A%d),-(A%d)', SIZES[sz], ry, rx);
                         default:
                             // ADD: Add; Source + Destination → Destination; Dn + <ea> → <ea> (p.108)
-                            return format('ADD%s D%d,%s', SIZES[sz], rx, this.getEAFromInstruction(instruction, sz));
+                            return format('ADD%s D%d,%s', SIZES[sz], rx, this.getEffectiveAddress(mode, ry, sz));
                     }
                 }
             } else {
                 // ADDA: Add Address; Source + Destination → Destination (p.111)
-                return format('ADDA.%s %s,A%d', (opmode == 3)?'W':'L', this.getEAFromInstruction(instruction, sz), rx);
+                return format('ADDA.%s %s,A%d', (opmode == 3)?'W':'L', this.getEffectiveAddress(mode, ry, sz), rx);
             }
             break;
 
@@ -767,19 +767,19 @@ m68000dasm.prototype.disassemble = function (address) {
                     case 0x00:
                         // ASL, ASR: Arithmetic Shift (memory shifts);
                         // Destination Shifted By Count → Destination (p.125)
-                        return format('AS%s %s', dr?'L':'R', this.getEAFromInstruction(instruction));
+                        return format('AS%s %s', dr?'L':'R', this.getEffectiveAddress(mode, ry));
                     case 0x01:
                         // LSL, LSR: Logical Shift (memory shifts)
                         // Destination Shifted By Count → Destination (p.217)
-                        return format('LS%s %s', dr?'L':'R', this.getEAFromInstruction(instruction));
+                        return format('LS%s %s', dr?'L':'R', this.getEffectiveAddress(mode, ry));
                     case 0x02:
                         // ROXL, ROXR; Rotate with Extend (memory shifts)
-                        // Destination Rotated By < count > → Destination (p.268)
-                        return format('ROX%s %s', dr?'L':'R', this.getEAFromInstruction(instruction));
+                        // Destination Rotated By <count> → Destination (p.268)
+                        return format('ROX%s %s', dr?'L':'R', this.getEffectiveAddress(mode, ry));
                     case 0x03:
                         // ROL, ROR; Rotate (Without Extend) (memory shifts)
-                        // Destination Rotated By < count > → Destination (p.264)
-                        return format('RO%s %s', dr?'L':'R', this.getEAFromInstruction(instruction));
+                        // Destination Rotated By <count> → Destination (p.264)
+                        return format('RO%s %s', dr?'L':'R', this.getEffectiveAddress(mode, ry));
                 }
             } else {
                 switch (mode & 0x03) {
@@ -797,13 +797,13 @@ m68000dasm.prototype.disassemble = function (address) {
                             : format('LS%s%s D%d,D%d', dr?'L':'R', SIZES[sz], rx, ry);
                     case 0x02:
                         // ROXL, ROXR; Rotate with Extend (register shifts);
-                        // Destination Rotated By < count > → Destination (p.268)
+                        // Destination Rotated By <count> → Destination (p.268)
                         return (data == 0x00)
                             ? format('ROX%s%s #%d,D%d', dr?'L':'R', SIZES[sz], rx, ry)
                             : format('ROX%s%s D%d,D%d', dr?'L':'R', SIZES[sz], rx, ry);
                     case 0x03:
                         // ROL, ROR; Rotate (Without Extend) (register shifts);
-                        // Destination Rotated By < count > → Destination (p.264)
+                        // Destination Rotated By <count> → Destination (p.264)
                         return (data == 0x00)
                             ? format('RO%s%s #%d,D%d', dr?'L':'R', SIZES[sz], rx, ry)
                             : format('RO%s%s D%d,D%d', dr?'L':'R', SIZES[sz], rx, ry);
@@ -830,79 +830,57 @@ m68000dasm.prototype.disassemble = function (address) {
  * @param  {integer} size     Optional. Size of immediate data.
  * @return {string}
  */
-m68000dasm.prototype.getEAFromModeAndReg = function(mode, register, size) {
-    var d, i;
+m68000dasm.prototype.getEffectiveAddress = function(mode, register, size) {
+    var data, index;
     switch (mode) {
         // Data Register Direct Mode (p.46)
         case 0:
-            return 'D'+register;
+            return format('D%d', register);
         // Address Register Direct Mode  (p.46)
         case 1:
-            return 'A'+register;
+            return format('A%d', register);
         // Address Register Indirect Mode  (p.46)
         case 2:
-            return '(A'+register+')';
+            return format('(A%d)', register);
         // Address Register Indirect with Postincrement Mode (p.47)
         case 3:
-            return '(A'+register+')+';
+            return format('(A%d)+', register);
         // Address Register Indirect with Predecrement Mode (p.48)
         case 4:
-            return '-(A'+register+')';
+            return format('-(A%d)', register);
         // Address Register Indirect with Displacement Mode (1 extension word: xn and displ) (p.49)
         case 5:
-            d = this.memory.getInt16(this.pointer);
-            this.pointer+= 2;
-            return '('+d+',A'+register+')';
+            return format('(%d,A%d)', this.getImmediateData(SIZE_WORD), register);
         // Address Register Indirect with Index (8-Bit Displacement) (1 extension word) Mode (p.50)
         case 6:
-            i = this.memory.getInt8(this.pointer) & 0x7;
-            d = this.memory.getInt8(this.pointer + 1);
+            index = this.memory.getInt8(this.pointer) & 0x7;
+            data = this.memory.getInt8(this.pointer + 1);
             this.pointer+= 2;
-            return '('+d+',A'+register+',X'+i+')';
+            return format('(%d,A%d,X%d)', data, register, index);
         case 7:
             switch (register) {
                 // Absolute Short Addressing Mode (p.59)
                 case 0:
-                    d = this.memory.getInt16(this.pointer);
-                    this.pointer+= 2;
-                    return '('+d+').W';
+                    return format('(%d).W', this.getImmediateData(SIZE_WORD));
                 // Absolute Short Addressing Mode (p.59)
                 case 1:
-                    d = this.memory.getUint32(this.pointer);
-                    this.pointer+= 4;
-                    return '('+d+').L';
+                    return format('(%d).L', this.getImmediateData(SIZE_LONG));
                 // Program Counter Indirect with Displacement Mode (p.54)
                 case 2:
-                    d = this.memory.getInt16(this.pointer);
-                    this.pointer+= 2;
-                    return '('+d+',PC)';
+                    return format('(%d,PC)', this.getImmediateData(SIZE_WORD));
                 // Program Counter Indirect with Index (8-Bit Displacement) Mode (p.55)
                 case 3:
-                    i = this.memory.getInt8(this.pointer) & 0x7;
-                    this.pointer+= 1;
-                    d = this.memory.getInt8(this.pointer);
-                    this.pointer+= 1;
-                    return '('+d+',PC,X'+i+')';
+                    index = this.memory.getInt8(this.pointer) & 0x7;
+                    data = this.memory.getInt8(this.pointer + 1);
+                    this.pointer+= 2;
+                    return format('(%d,PC,X%d)', data, index);
                 // Immediate Data (p.60)
                 case 4:
-                    if (typeof size == 'undefined') throw Error('getEAFromModeAndReg: undefined size');
-                    return '#' + this.getImmediateData(size);
+                    if (typeof size == 'undefined') throw Error('getEffectiveAddress: undefined size');
+                    return format('#%d', this.getImmediateData(size));
             }
     }
     throw Error('Addressing mode not supported: ' + mode);
-}
-
-/**
- * Get effective address from instruction
- *
- * @param  {integer} instruction Instruction code
- * @param  {integer} size        Optional. Size of immediate data.
- * @return {string}
- */
-m68000dasm.prototype.getEAFromInstruction = function(instruction, size) {
-    var register = instruction & 0x07,
-        mode = (instruction >> 3) & 0x7;
-    return this.getEAFromModeAndReg(mode, register, size);
 }
 
 /**
@@ -912,21 +890,21 @@ m68000dasm.prototype.getEAFromInstruction = function(instruction, size) {
  * @return {integer} data
  */
 m68000dasm.prototype.getImmediateData = function(size) {
-    var d;
+    var data;
     switch (size) {
         case SIZE_BYTE:
-            if (d > 0xFF) throw Error('High Byte of immediate data must be 0');
-            d = this.memory.getInt16(this.pointer) & 0xFF;
+            if (data > 0xFF) throw Error('High Byte of immediate data must be 0');
+            data = this.memory.getInt16(this.pointer) & 0xFF;
             this.pointer+= 2;
-            return d;
+            return data;
         case SIZE_WORD:
-            d = this.memory.getInt16(this.pointer);
+            data = this.memory.getInt16(this.pointer);
             this.pointer+= 2;
-            return d;
+            return data;
         case SIZE_LONG:
-            d = this.memory.getInt32(this.pointer);
+            data = this.memory.getInt32(this.pointer);
             this.pointer+= 4;
-            return d;
+            return data;
         default:
             throw Error('Wrong size value for immediate data')
     }
