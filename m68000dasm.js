@@ -55,6 +55,7 @@ m68000dasm.prototype.disassemble = function (address) {
             // ORI      : 0000 000 0sz mod reg - sz = 00|01|10
             // ORItoCCR : 0000 000 000 111 100
             // ANDItoCCR: 0000 001 000 111 100
+            // ANDItoSR : 0000 001 001 111 100
             // ANDI     : 0000 001 0sz mod reg - sz = 00|01|10
             // SUBI     : 0000 010 0sz mod reg - sz = 00|01|10
             // ADDI     : 0000 011 0sz mod reg - sz = 00|01|10
@@ -64,6 +65,7 @@ m68000dasm.prototype.disassemble = function (address) {
             // BCLR imm : 0000 100 010 mod reg
             // BSET imm : 0000 100 011 mod reg
             // EORItoCCR: 0000 101 000 111 100
+            // EORItoSR : 0000 101 001 111 100
             // EORI     : 0000 101 0sz mod reg - sz = 00|01|10
             // CMPI     : 0000 110 0sz mod reg - sz = 00|01|10
             // BTST reg : 0000 reg 100 mod reg
@@ -97,11 +99,22 @@ m68000dasm.prototype.disassemble = function (address) {
                         data = this.getImmediateData(SIZE_WORD);
                         return format('ANDI #%d,CCR', data);
                     }
-                    if (opmode <= 0x02) {
-                        // ANDI: AND Immediate: Immediate Data Λ Destination → Destination (p.122)
-                        sz = opmode;
-                        data = this.getImmediateData(sz);
-                        return format('ANDI%s #%d,%s', SIZES[sz], data, this.getEAFromInstruction(instruction, sz));
+                    switch (opmode) {
+                        case 0x00:
+                            // intentional fall-through
+                        case 0x01:
+                            // ANDI to SSR: AND Immediate to the Status Register;
+                            // If Supervisor State Then Source L SR → SR ELSE TRAP (p.456)
+                            if (mode == 0x07 && ry == 0x04) {
+                                data = this.getImmediateData(SIZE_WORD);
+                                return format('ANDI #%d,SR', data);
+                            }
+                            // intentional fall-through
+                        case 0x02:
+                            // ANDI: AND Immediate: Immediate Data Λ Destination → Destination (p.122)
+                            sz = opmode;
+                            data = this.getImmediateData(sz);
+                            return format('ANDI%s #%d,%s', SIZES[sz], data, this.getEAFromInstruction(instruction, sz));
                     }
                     break;
 
@@ -151,16 +164,27 @@ m68000dasm.prototype.disassemble = function (address) {
                     break;
 
                 case 0x05:
-                    if (instruction == 0x0A3C) {
-                        // EORI to CCR: Exclusive-OR Immediate to CCR; Source ⊕ CCR → CCR → Destination (p.208)
-                        data = this.getImmediateData(SIZE_WORD);
-                        return format('EORI #%d,CCR', data);
-                    }
-                    if (opmode <= 0x02) {
-                        // EORI: Exclusive-OR Immediate; Immediate Data ⊕ Destination → Destination (p.206)
-                        sz = opmode;
-                        data = this.getImmediateData(sz);
-                        return format('EORI%s #%d,%s', SIZES[sz], data, this.getEAFromInstruction(instruction, sz));
+                    switch (opmode) {
+                        case 0x00:
+                            // EORI to CCR: Exclusive-OR Immediate to CCR; Source ⊕ CCR → CCR → Destination (p.208)
+                            if (mode == 0x07 && ry == 0x04) {
+                                data = this.getImmediateData(SIZE_WORD);
+                                return format('EORI #%d,CCR', data);
+                            }
+                            // intentional fall-through
+                        case 0x01:
+                            // EORI to SR: Exclusive-OR Immediate to the Status Register;
+                            // If Supervisor State Then Source ⊕ SR → SR ELSE TRAP (p.464)
+                            if (mode == 0x07 && ry == 0x04) {
+                                data = this.getImmediateData(SIZE_WORD);
+                                return format('EORI #%d,SR', data);
+                            }
+                            // intentional fall-through
+                        case 0x02:
+                            // EORI: Exclusive-OR Immediate; Immediate Data ⊕ Destination → Destination (p.206)
+                            sz = opmode;
+                            data = this.getImmediateData(sz);
+                            return format('EORI%s #%d,%s', SIZES[sz], data, this.getEAFromInstruction(instruction, sz));
                     }
                     break;
 

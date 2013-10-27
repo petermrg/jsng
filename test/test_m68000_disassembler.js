@@ -1123,6 +1123,16 @@ describe('m68000', function () {
             assert.equal(dasm.disassemble(3), 'UNLK A5');
         });
 
+        it('disassembles ANDI to SR', function() {
+            dasm.memory.setInt32(3, bin('0000001001111100 0000111100001111'));
+            assert.equal(dasm.disassemble(3), 'ANDI #3855,SR');
+        });
+
+        it('disassembles EORI to SR', function() {
+            dasm.memory.setInt32(3, bin('0000101001111100 0000111100001111'));
+            assert.equal(dasm.disassemble(3), 'EORI #3855,SR');
+        });
+
     });
 
 });
