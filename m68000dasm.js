@@ -497,9 +497,18 @@ m68000dasm.prototype.disassemble = function (address) {
         // 1001 SUB/SUBX
         case 0x09:
             // SUB : 1001 reg opm mod reg - opm = 000|001|010|100|101|110
-            // SUBA: 1001 reg opm mod reg - opm = 000|001|010|100|101|110
+            // SUBA: 1001 reg opm mod reg - opm = 011|111
+            // SUBX: 1001 reg 1sz 00r reg - sz = 00|01|10
             size = opmode & 0x03;
-
+            if (mode <= 0x01 && opmode >= 0x04 && opmode < 0x07 && size <= 0x02) {
+                // SUBX: Subtract with Extend; Destination – Source – X → Destination (p.287)
+                switch (mode) {
+                    case 0x00:
+                        return format('SUBX%s D%d,D%d', SIZES[size], ry, rx);
+                    case 0x01:
+                        return format('SUBX%s A%d,A%d', SIZES[size], ry, rx);
+                }
+            }
             if (size < 0x03) {
                 // SUB: Substact; Destination – Source → Destination (p.278)
                 if (opmode < 0x04) {

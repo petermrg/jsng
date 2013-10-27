@@ -1067,6 +1067,26 @@ describe('m68000', function () {
             assert.equal(dasm.disassemble(9), 'SUBQ.L #2,(64,A7,X5)');
         });
 
+        it('disassembles SUBX', function () {
+            dasm.memory.setInt16(3, bin('1001 101 100 000 111'));
+            assert.equal(dasm.disassemble(3), 'SUBX D7,D5');
+
+            dasm.memory.setInt16(3, bin('1001 101 101 000 111'));
+            assert.equal(dasm.disassemble(3), 'SUBX.W D7,D5');
+
+            dasm.memory.setInt16(3, bin('1001 101 110 000 111'));
+            assert.equal(dasm.disassemble(3), 'SUBX.L D7,D5');
+
+            dasm.memory.setInt16(3, bin('1001 101 100 001 111'));
+            assert.equal(dasm.disassemble(3), 'SUBX A7,A5');
+
+            dasm.memory.setInt16(3, bin('1001 101 101 001 111'));
+            assert.equal(dasm.disassemble(3), 'SUBX.W A7,A5');
+
+            dasm.memory.setInt16(3, bin('1001 101 110 001 111'));
+            assert.equal(dasm.disassemble(3), 'SUBX.L A7,A5');
+        });
+
     });
 
 });
