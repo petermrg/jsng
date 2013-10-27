@@ -447,7 +447,7 @@ m68000dasm.prototype.disassemble = function (address) {
             // DIVU: 1000 reg 011 mod reg
             // SBCD: 1000 reg 100 00r reg
             // DIVS: 1000 reg 111 mod reg
-            // OR  : 1000 reg opm mod reg - mod = 000|001|010|100|101|110
+            // OR  : 1000 reg opm mod reg - opm = 000|001|010|100|101|110
             rx = (instruction >> 9) & 0x07;
             opmode = (instruction >> 6) & 0x07;
             switch (opmode) {
@@ -480,11 +480,21 @@ m68000dasm.prototype.disassemble = function (address) {
 
         // 1001 SUB/SUBX
         case 0x09:
+            // SUB : 1001 reg opm mod reg - opm = 000|001|010|100|101|110
+            // SUBA: 1001 reg opm mod reg - opm = 000|001|010|100|101|110
             size = opmode & 0x03;
-            if (opmode < 0x04) {
-                return format('SUB%s %s,D%d', SIZES[size], this.getEAFromInstruction(instruction, size), rx);
+
+            if (size < 0x03) {
+                // SUB: Substact; Destination – Source → Destination (p.278)
+                if (opmode < 0x04) {
+                    return format('SUB%s %s,D%d', SIZES[size], this.getEAFromInstruction(instruction, size), rx);
+                } else {
+                    return format('SUB%s D%d,%s', SIZES[size], rx, this.getEAFromInstruction(instruction, size));
+                }
             } else {
-                return format('SUB%s D%d,%s', SIZES[size], rx, this.getEAFromInstruction(instruction, size));
+                // SUBA: Substact; Destination – Source → Destination (p.281)
+                size = (opmode < 0x04) ? SIZE_WORD : SIZE_LONG;
+                return format('SUBA%s %s,D%d', SIZES[size], this.getEAFromInstruction(instruction, size), rx);
             }
             break;
 

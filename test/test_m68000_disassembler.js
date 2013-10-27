@@ -1030,6 +1030,20 @@ describe('m68000', function () {
             assert.equal(dasm.disassemble(3), 'SUB.L D5,(A6)');
         });
 
+        it('disassembles SUBA', function() {
+            dasm.memory.setInt16(3, bin('1001 101 011 000 110'));
+            assert.equal(dasm.disassemble(3), 'SUBA.W D6,D5');
+
+            dasm.memory.setInt16(3, bin('1001 101 111 000 110'));
+            assert.equal(dasm.disassemble(3), 'SUBA.L D6,D5');
+
+            dasm.memory.setInt16(3, bin('1001 101 011 010 110'));
+            assert.equal(dasm.disassemble(3), 'SUBA.W (A6),D5');
+
+            dasm.memory.setInt16(3, bin('1001 101 111 010 110'));
+            assert.equal(dasm.disassemble(3), 'SUBA.L (A6),D5');
+        });
+
 
     });
 
