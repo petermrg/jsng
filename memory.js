@@ -5,6 +5,7 @@
  * @param {integer} startAddress
  */
 var Memory = function(size, startAddress) {
+    if (!size || size < 0) throw Error('Invalid memory size');
     this.buffer = new ArrayBuffer(size);
     this.data = new DataView(this.buffer); // https://developer.mozilla.org/en-US/docs/Web/API/DataView
     this.startAddress = startAddress || 0;

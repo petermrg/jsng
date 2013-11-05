@@ -19,7 +19,7 @@ m68000dasm = function(memory) {
 }
 
 /**
- * Dissasemble instruction at address. If no address is given, it uses the internal pointer.
+ * Disassemble instruction at address. If no address is given, it uses the internal pointer.
  *
  * Common instruction parts:
  *                                ┌─────────────────┐

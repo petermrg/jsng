@@ -35,7 +35,13 @@ var m68000 = function(memory) {
     this.memory = memory;
     this.registersBuffer = new ArrayBuffer(18 * 32);
     this.registers = new DataView(this.registersBuffer);
+
+    this.addrD = 0;
+    this.addrA = 8 * 4;
+    this.addrPC32 = 16 * 4;
+    this.addrCCR = 17 * 4;
 }
+
 
 module.exports = m68000;
 
